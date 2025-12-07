@@ -1,0 +1,44 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual Environments
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+
+# IDEs / Editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# dotenv / environment files
+.env
+.env.*.local
+
+# Logs
+*.log
+
+# Pytest cache
+.pytest_cache/
+
+# Uvicorn / FastAPI temporary files
+__pycache__/
+*.db
+*.sqlite3
