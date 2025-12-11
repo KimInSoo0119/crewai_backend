@@ -1,11 +1,17 @@
+import uvicorn
 from fastapi import FastAPI
-from dotenv import load_dotenv
-import os
+from src.controller import agent_controller, task_controller
 
-load_dotenv()
+app = FastAPI(title="Crewai Backend API")
 
-app = FastAPI(title="Crewai Backend")
+app.include_router(
+    agent_controller.router, 
+    prefix="/api/v1/agents", 
+    tags=["Agents"]
+)
 
-@app.get("/")
-def read_root():
-    return {"message": "Hello, Crewai!"}
+app.include_router(
+    task_controller.router, 
+    prefix="/api/v1/tasks", 
+    tags=["Tasks"]
+)
