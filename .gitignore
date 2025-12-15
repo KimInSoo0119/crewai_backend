@@ -28,10 +28,6 @@ dist/
 .DS_Store
 Thumbs.db
 
-# dotenv / environment files
-.env
-.env.*.local
-
 # Logs
 *.log
 
