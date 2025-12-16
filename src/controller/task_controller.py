@@ -20,3 +20,13 @@ def save_task(task: TaskSave):
         return response
     except RuntimeError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    
+@router.get("/projects/{project_id}/tasks/{task_id}")
+def get_task(project_id: int, task_id: int):
+    try:
+        response = task_service.get_task(project_id, task_id)
+        if not response:
+            raise HTTPException(404, "Task not found")
+        return response
+    except RuntimeError as e:
+        raise HTTPException(status_code=400, detail=str(e))

@@ -42,3 +42,32 @@ def update_agent(agent):
 
     finally:
         release_db_connection(conn)
+
+def find_one(project_id: int, agent_id: int):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+
+        query = """
+            SELECT
+                a.id,
+                a.project_id,
+                a.role,
+                a.goal,
+                a.backstory,
+                m.name AS model_name
+            FROM tb_agent a
+            LEFT JOIN tb_model m
+                ON a.model_id = m.id
+            WHERE a.project_id = %s
+                AND a.id = %s
+        """
+        cursor.execute(query, (project_id, agent_id))
+        result = cursor.fetchone()
+
+        conn.commit()
+        return result
+
+    finally:
+        release_db_connection(conn)
+

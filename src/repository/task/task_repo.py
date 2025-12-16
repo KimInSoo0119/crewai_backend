@@ -41,3 +41,29 @@ def update_task(task):
 
     finally:
         release_db_connection(conn)
+
+def find_one(project_id: int, task_id: int):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+
+        query = """
+            SELECT
+                id,
+                project_id,
+                agent_id,
+                name,
+                description,
+                expected_output
+            FROM tb_task
+        WHERE project_id = %s
+            AND id = %s
+        """
+        cursor.execute(query, (project_id, task_id))
+        result = cursor.fetchone()
+
+        conn.commit()
+        return result
+
+    finally:
+        release_db_connection(conn)

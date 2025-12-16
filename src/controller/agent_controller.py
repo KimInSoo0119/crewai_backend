@@ -20,3 +20,13 @@ def save_agent(agent: AgentSave):
         return response
     except RuntimeError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    
+@router.get("/projects/{project_id}/agents/{agent_id}")
+def get_agent(project_id: int, agent_id: int):
+    try:
+        response = agent_service.get_agent(project_id, agent_id)
+        if not response:
+            raise HTTPException(404, "Agent not found")
+        return response
+    except RuntimeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
