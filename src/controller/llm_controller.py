@@ -22,7 +22,7 @@ def connection_llm(llmInfo: llmInfo):
 def get_llm_list():
     try:
         response = llm_service.get_llm_list()
-        return {"data": [response]}
+        return {"data": response}
     except RuntimeError as e:
         raise HTTPException(status_code=400, detail=str(e))
     
@@ -30,7 +30,7 @@ def get_llm_list():
 def get_provider_list():
     try:
         response = llm_service.get_provider_list()
-        return {"data": [response]}
+        return {"data": response}
     except RuntimeError as e:
         raise HTTPException(status_code=400, detail=str(e))
     

@@ -7,6 +7,6 @@ router = APIRouter()
 def get_crew_list():
     try:
         response = crew_service.get_crew_list()
-        return {"data": [response]}
+        return {"data": response}
     except RuntimeError as e:
         raise HTTPException(status_code=400, detail=str(e))
