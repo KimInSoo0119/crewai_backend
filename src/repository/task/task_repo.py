@@ -11,7 +11,7 @@ def create_task(task):
             RETURNING id, project_id, agent_id, name, description, expected_output, create_time, update_time
         """
         cursor.execute(query, (task.project_id, task.name, task.description, task.expected_output))
-        result = cursor.fetchone()
+        result = cursor.fechall()
 
         conn.commit()
         return result
@@ -34,7 +34,7 @@ def update_task(task):
             RETURNING id, project_id, agent_id, name, description, expected_output, create_time, update_time
         """
         cursor.execute(query, (task.name, task.description, task.expected_output, task.id))
-        result = cursor.fetchone()
+        result = cursor.fechall()
 
         conn.commit()
         return result
@@ -56,11 +56,11 @@ def find_one(project_id: int, task_id: int):
                 description,
                 expected_output
             FROM tb_task
-        WHERE project_id = %s
+            WHERE project_id = %s
             AND id = %s
         """
         cursor.execute(query, (project_id, task_id))
-        result = cursor.fetchone()
+        result = cursor.fechall()
 
         conn.commit()
         return result

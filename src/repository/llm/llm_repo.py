@@ -11,7 +11,7 @@ def connection_llm(llmInfo):
             RETURNING id
         """
         cursor.execute(query, (llmInfo.name, llmInfo.provider, llmInfo.api_base))
-        result = cursor.fetchone()
+        result = cursor.fetchall()
 
         conn.commit()
         return result
@@ -31,7 +31,7 @@ def get_llm_list():
             FROM tb_model
         """
         cursor.execute(query)
-        result = cursor.fetchone()
+        result = cursor.fetchall()
 
         conn.commit()
         return result
@@ -51,7 +51,7 @@ def get_provider_list():
             FROM tb_provider
         """
         cursor.execute(query)
-        result = cursor.fetchone()
+        result = cursor.fetchall()
 
         conn.commit()
         return result

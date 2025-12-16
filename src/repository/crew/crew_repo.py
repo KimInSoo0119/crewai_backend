@@ -12,7 +12,7 @@ def get_crew_list():
             FROM tb_project
         """
         cursor.execute(query)
-        result = cursor.fetchone()
+        result = cursor.fetchall()
 
         conn.commit()
         return result
