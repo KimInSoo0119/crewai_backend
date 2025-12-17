@@ -26,8 +26,7 @@ def get_llm_list():
 
         query = """
             SELECT
-                id,
-                name
+                id, name
             FROM tb_model
         """
         cursor.execute(query)
@@ -46,8 +45,7 @@ def get_provider_list():
 
         query = """
             SELECT
-                id,
-                label
+                id, label
             FROM tb_provider
         """
         cursor.execute(query)

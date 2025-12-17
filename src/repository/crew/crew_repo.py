@@ -1,4 +1,24 @@
 from src.utils.db_client import get_db_connection, release_db_connection
+from psycopg2.extras import Json
+
+def create_crew(crewData):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+
+        query = """
+            INSERT INTO tb_project (title)
+            VALUES (%s)
+            RETURNING id
+        """
+        cursor.execute(query, (crewData.title,))
+        project_id = cursor.fetchone()[0]
+
+        conn.commit()
+        return project_id
+
+    finally:
+        release_db_connection(conn)
 
 def get_crew_list():
     conn = get_db_connection()
@@ -7,8 +27,7 @@ def get_crew_list():
 
         query = """
             SELECT
-                id,
-                title
+                id,title
             FROM tb_project
         """
         cursor.execute(query)
@@ -17,5 +36,216 @@ def get_crew_list():
         conn.commit()
         return result
 
+    finally:
+        release_db_connection(conn)
+
+def get_agents_info(project_id):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+
+        query = """
+            SELECT
+                id, role, goal, backstory, position
+            FROM tb_agent
+            WHERE project_id=%s
+        """
+        cursor.execute(query, (project_id,))
+        result = cursor.fetchall()
+
+        conn.commit()
+        return result
+
+    finally:
+        release_db_connection(conn)
+
+def get_tasks_info(project_id):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+
+        query = """
+            SELECT
+                id, agent_id, name, description, expected_output, position
+            FROM tb_task
+            WHERE project_id=%s
+        """
+        cursor.execute(query, (project_id,))
+        result = cursor.fetchall()
+
+        conn.commit()
+        return result
+
+    finally:
+        release_db_connection(conn)
+
+def get_edges_info(project_id):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+
+        query = """
+            SELECT
+                id, source_id, source_type, target_id, target_type
+            FROM tb_edge
+            WHERE project_id=%s
+        """
+        cursor.execute(query, (project_id,))
+        result = cursor.fetchall()
+
+        conn.commit()
+        return result
+
+    finally:
+        release_db_connection(conn)
+
+def insert_agent(project_id, role, goal, backstory, position):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+
+        query = """
+            INSERT INTO tb_agent (project_id, role, goal, backstory, position)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING id
+        """
+        cursor.execute(query, (project_id, role, goal, backstory, Json(position)))
+        row = cursor.fetchone()
+        agent_id = row['id']
+
+        conn.commit()
+        return agent_id
+
+    finally:
+        release_db_connection(conn)
+
+def update_agent(agent_id, role, goal, backstory, position):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+
+        query = """
+            UPDATE tb_agent
+            SET role=%s, goal=%s, backstory=%s, position=%s
+            WHERE id=%s
+        """
+        cursor.execute(query, (role, goal, backstory, Json(position), agent_id))
+        
+        conn.commit()
+    
+    finally:
+        release_db_connection(conn)
+
+def delete_agent(agent_id,):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM tb_agent WHERE id=%s", (agent_id,))
+        conn.commit()
+    
+    finally:
+        release_db_connection(conn)
+
+def insert_task(project_id, name, description, expected_output, position):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO tb_task (project_id, name, description, expected_output, position)
+            VALUES (%s, %s, %s, %s, %s) RETURNING id
+        """, (project_id, name, description, expected_output, Json(position)))
+        row = cursor.fetchone()
+        task_id = row['id']
+        
+        conn.commit()
+        return task_id
+    
+    finally:
+        release_db_connection(conn)
+
+def update_task(task_id, name, description, expected_output, position):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE tb_task
+            SET name=%s, description=%s, expected_output=%s, position=%s
+            WHERE id=%s
+        """, (name, description, expected_output, Json(position), task_id))
+        
+        conn.commit()
+
+    finally:
+        release_db_connection(conn)
+
+def delete_task(task_id):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM tb_task WHERE id=%s", (task_id,))
+        conn.commit()
+
+    finally:
+        release_db_connection(conn)
+
+def get_edges_info(project_id):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+
+        query = """
+            SELECT
+                id, source_id, source_type, target_id, target_type
+            FROM tb_edge
+            WHERE project_id=%s
+        """
+        cursor.execute(query, (project_id,))
+        result = cursor.fetchall()
+
+        conn.commit()
+        return result
+
+    finally:
+        release_db_connection(conn)
+
+def insert_edge(project_id, source_type, source_id, target_type, target_id):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO tb_edge (project_id, source_type, source_id, target_type, target_id)
+            VALUES (%s, %s, %s, %s, %s) RETURNING id
+        """, (project_id, source_type, source_id, target_type, target_id))
+        row = cursor.fetchone()
+        edge_id = row['id']
+        
+        conn.commit()
+        return edge_id
+    
+    finally:
+        release_db_connection(conn)
+
+def update_edge(edge_id, source_type, source_id, target_type, target_id):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE tb_edge
+            SET source_type=%s, source_id=%s, target_type=%s, target_id=%s
+            WHERE id=%s
+        """, (source_type, source_id, target_type, target_id, edge_id))
+        
+        conn.commit()
+    
+    finally:
+        release_db_connection(conn)
+
+def delete_edge(edge_id):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM tb_edge WHERE id=%s", (edge_id,))
+        conn.commit()
+    
     finally:
         release_db_connection(conn)

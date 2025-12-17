@@ -11,7 +11,7 @@ def create_agent(agent):
             RETURNING id, project_id, role, goal, backstory, model_id, create_time, update_time
         """
         cursor.execute(query, (agent.project_id, agent.role, agent.goal, agent.backstory, agent.model_id))
-        result = cursor.fechall()
+        result = cursor.fetchall()
 
         conn.commit()
         return result
@@ -35,7 +35,7 @@ def update_agent(agent):
             RETURNING id, project_id, role, goal, backstory, model_id, create_time, update_time
         """
         cursor.execute(query, (agent.role, agent.goal, agent.backstory, agent.model_id, agent.id))
-        result = cursor.fechall()
+        result = cursor.fetchall()
 
         conn.commit()
         return result
@@ -63,7 +63,7 @@ def find_one(project_id: int, agent_id: int):
                 AND a.id = %s
         """
         cursor.execute(query, (project_id, agent_id))
-        result = cursor.fechall()
+        result = cursor.fetchall()
 
         conn.commit()
         return result
