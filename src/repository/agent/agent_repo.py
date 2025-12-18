@@ -55,7 +55,8 @@ def find_one(project_id: int, agent_id: int):
                 a.role,
                 a.goal,
                 a.backstory,
-                m.name AS model_name
+                m.id as model_id,
+                m.name as model_name
             FROM tb_agent a
             LEFT JOIN tb_model m
                 ON a.model_id = m.id

@@ -27,6 +27,6 @@ def get_agent(project_id: int, agent_id: int):
         response = agent_service.get_agent(project_id, agent_id)
         if not response:
             raise HTTPException(404, "Agent not found")
-        return response
+        return {"data": response}
     except RuntimeError as e:
         raise HTTPException(status_code=400, detail=str(e))

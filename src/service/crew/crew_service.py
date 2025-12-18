@@ -28,6 +28,7 @@ def get_crew_flow(project_id):
                 "type": "agent",
                 "position": agent.get('position', {'x':100, 'y':100}),  
                 "data": {
+                    "id": agent['id'],
                     "label": f"Agent {agent['id']}",
                     "role": agent['role'],
                     "goal": agent['goal'],
@@ -42,7 +43,7 @@ def get_crew_flow(project_id):
                 "type": "task",
                 "position": task.get('position', {'x':400, 'y':100}),
                 "data": {
-                    "label": task['name'],
+                    "id": task['id'],
                     "name": task['name'],
                     "description": task['description'],
                     "expected_output": task['expected_output'],

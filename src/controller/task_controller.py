@@ -8,7 +8,7 @@ router = APIRouter()
 class TaskSave(BaseModel):
     id: Optional[int] = None
     project_id: int
-    agent_id: int
+    agent_id: Optional[int] = None
     name: str
     description: str
     expected_output: str
@@ -27,6 +27,6 @@ def get_task(project_id: int, task_id: int):
         response = task_service.get_task(project_id, task_id)
         if not response:
             raise HTTPException(404, "Task not found")
-        return response
+        return {"data": response}
     except RuntimeError as e:
         raise HTTPException(status_code=400, detail=str(e))
