@@ -1,4 +1,5 @@
 from src.repository.crew import crew_repo
+from .run_crewai import run_crewai_flow
 
 def create_crew(crewData):
     try:
@@ -64,7 +65,7 @@ def get_crew_flow(project_id):
 
     except Exception as e:
         raise RuntimeError(f"error: {str(e)}")
-    
+
 def execute_flow(project_id, nodes, edges):
     try:
         existing_agents = {a["id"] for a in crew_repo.get_agents_info(project_id)}
@@ -75,9 +76,11 @@ def execute_flow(project_id, nodes, edges):
         request_tasks = set()
         request_edges = set()
 
-        # NODES
+        id_map = {}
+
         for node in nodes:
             db_id = getattr(node, "dbId", None)
+            node_id = getattr(node, "id", None)
             node_data = getattr(node, "data", {}) or {}
             node_type = getattr(node, "type", None)
             node_pos = getattr(node, "position", None)
@@ -90,9 +93,11 @@ def execute_flow(project_id, nodes, edges):
                 if db_id:
                     crew_repo.update_agent(db_id, role, goal, backstory, node_pos)
                     request_agents.add(db_id)
+                    id_map[f"agent-{db_id}"] = db_id
                 else:
                     new_id = crew_repo.insert_agent(project_id, role, goal, backstory, node_pos)
                     request_agents.add(new_id)
+                    id_map[node_id] = new_id
 
             elif node_type == "task":
                 name = node_data.get("name", "")
@@ -102,29 +107,39 @@ def execute_flow(project_id, nodes, edges):
                 if db_id:
                     crew_repo.update_task(db_id, name, description, expected_output, node_pos)
                     request_tasks.add(db_id)
+                    id_map[f"task-{db_id}"] = db_id
                 else:
                     new_id = crew_repo.insert_task(project_id, name, description, expected_output, node_pos)
                     request_tasks.add(new_id)
+                    id_map[node_id] = new_id
 
-        # DELETE REMOVED NODES
         for agent_id in existing_agents - request_agents:
             crew_repo.delete_agent(agent_id)
         for task_id in existing_tasks - request_tasks:
             crew_repo.delete_task(task_id)
 
-        # EDGES
         for edge in edges:
             db_id = getattr(edge, "dbId", None)
-            source, target = getattr(edge, "source", ""), getattr(edge, "target", "")
+            source = getattr(edge, "source", "")
+            target = getattr(edge, "target", "")
 
             if "-" not in source or "-" not in target:
-                continue  
+                continue
 
-            source_type, source_id = source.split("-")
-            target_type, target_id = target.split("-")
+            source_type, source_key = source.split("-", 1)
+            target_type, target_key = target.split("-", 1)
 
-            source_id = int(source_id)
-            target_id = int(target_id)
+            if source in id_map:
+                source_id = id_map[source]
+            else:
+                _, real_id = source.split("-", 1)
+                source_id = int(real_id)
+
+            if target in id_map:
+                target_id = id_map[target]
+            else:
+                _, real_id = target.split("-", 1)
+                target_id = int(real_id)
 
             if db_id:
                 crew_repo.update_edge(db_id, source_type, source_id, target_type, target_id)
@@ -133,10 +148,12 @@ def execute_flow(project_id, nodes, edges):
                 new_id = crew_repo.insert_edge(project_id, source_type, source_id, target_type, target_id)
                 request_edges.add(new_id)
 
-        # DELETE REMOVED EDGES
         for edge_id in existing_edges - request_edges:
             crew_repo.delete_edge(edge_id)
 
+        run_crewai_flow(project_id, nodes, edges, id_map)
+
     except Exception as e:
         raise RuntimeError(f"execute_flow error: {str(e)}")
+
 
