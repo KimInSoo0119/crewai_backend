@@ -151,7 +151,7 @@ def execute_flow(project_id, nodes, edges):
         for edge_id in existing_edges - request_edges:
             crew_repo.delete_edge(edge_id)
 
-        run_crewai_flow(project_id, nodes, edges, id_map)
+        run_crewai_flow(nodes, edges, id_map)
 
     except Exception as e:
         raise RuntimeError(f"execute_flow error: {str(e)}")
