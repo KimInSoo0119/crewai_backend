@@ -1,21 +1,8 @@
 from crewai import Agent, Task, Crew, LLM
-import os
-from dotenv import load_dotenv
+from src.repository.llm import llm_repo
 
 def run_crewai_flow(nodes, edges, id_map):
     try:
-        load_dotenv()
-
-        API_KEY = os.getenv("HOSTED_VLLM_API_KEY")
-        LLM_SERVER_URL = os.getenv("HOSTED_VLLM_API_BASE")  
-        MODEL_NAME = os.getenv("HOSTED_VLLM_MODEL_NAME")
-
-        crew_llm = LLM(
-                    model=f"openai/{MODEL_NAME}",
-                    api_key=API_KEY,
-                    base_url=LLM_SERVER_URL
-                )
-
         agents_obj = {}
         tasks_obj = {}
 
@@ -36,6 +23,19 @@ def run_crewai_flow(nodes, edges, id_map):
                     role = node_data.get('role', '') 
                     goal = node_data.get('goal', '') 
                     backstory = node_data.get('backstory', '') 
+                    model_id = node_data.get('model_id', None)
+
+                    model_info = llm_repo.get_model_info(model_id)
+
+                    model_name = model_info['name']
+                    model_base_url = model_info['api_base_url']
+                    model_api_key = model_info['api_key']
+
+                    crew_llm = LLM( 
+                        model=f"openai/{model_name}",
+                        api_key=model_api_key,
+                        base_url=model_base_url
+                    )
 
                     agent = Agent(
                         role=role,
@@ -112,10 +112,22 @@ def run_crewai_flow(nodes, edges, id_map):
             verbose=True
         )
 
-        result = crew.kickoff()
-        print(f"Crew execution completed. Result: {result}")
-        # return {"status": "success", "result": str(result)}
+        final_result = crew.kickoff() 
+        workflow = []
+
+        for task in tasks_list:
+             workflow.append({
+                "id": task.id,
+                "output": task.output
+            })
+
+        return {
+            "details": {
+                # "crew_id": crew.id,
+                "workflow": workflow,
+                "final_output": str(final_result)
+            }
+        }
 
     except Exception as e:
-        print(f"CrewAI execution Error. Result: {str(e)}")
-        # return {"status": "error", "message": str(e)}
+        return {"status": "error", "message": str(e)}

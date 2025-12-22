@@ -53,7 +53,15 @@ def get_crew_flow(project_id: int):
 @router.post("/flow/execute")
 def crew_flow_execute(request: ExecuteFlowRequest):
     try:
-        crew_service.execute_flow(request.project_id, request.nodes, request.edges)
-        return {"status": "success"}
+        response = crew_service.execute_flow(request.project_id, request.nodes, request.edges)
+        return {"status": "success", "data": response}
+    except RuntimeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+@router.get("/flow/status/{execution_id}")
+def flow_status(execution_id: int):
+    try:
+        response = crew_service.get_execution_status(execution_id)
+        return {"status": "success", "data": response}
     except RuntimeError as e:
         raise HTTPException(status_code=400, detail=str(e))

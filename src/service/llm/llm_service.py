@@ -1,11 +1,12 @@
 import requests
+from cryptography.fernet import Fernet
 from src.repository.llm import llm_repo
 
 def connection_llm(llmInfo):
     try:
         headers = {"Authorization": f"Bearer {llmInfo.api_key}"}
         api_url = f"{llmInfo.api_base}/models" 
-        res = requests.get(api_url, headers=headers, timeout=5)
+        res = requests.get(api_url, headers=headers, timeout=5)               
         if res.status_code != 200:
             raise RuntimeError(f"Failed to connect to LLM API. Status code: {res.status_code}")
         

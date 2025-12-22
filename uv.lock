@@ -510,6 +510,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "crewai" },
+    { name = "cryptography" },
     { name = "fastapi" },
     { name = "langchain-openai" },
     { name = "litellm" },
@@ -524,6 +525,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "crewai", extras = ["lite"], specifier = ">=1.6.1" },
+    { name = "cryptography", specifier = ">=46.0.3" },
     { name = "fastapi", specifier = ">=0.124.0" },
     { name = "langchain-openai", specifier = ">=1.1.6" },
     { name = "litellm", specifier = ">=1.80.10" },

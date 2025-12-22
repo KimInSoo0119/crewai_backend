@@ -1,5 +1,7 @@
 from src.repository.crew import crew_repo
 from .run_crewai import run_crewai_flow
+from threading import Thread
+import json
 
 def create_crew(crewData):
     try:
@@ -31,6 +33,7 @@ def get_crew_flow(project_id):
                 "data": {
                     "id": agent['id'],
                     "label": f"Agent {agent['id']}",
+                    "model_id": agent['model_id'],
                     "role": agent['role'],
                     "goal": agent['goal'],
                     "backstory": agent['backstory']
@@ -86,16 +89,17 @@ def execute_flow(project_id, nodes, edges):
             node_pos = getattr(node, "position", None)
 
             if node_type == "agent":
+                model_id = node_data.get("model_id", None)
                 role = node_data.get("role", "")
                 goal = node_data.get("goal", "")
                 backstory = node_data.get("backstory", "")
 
                 if db_id:
-                    crew_repo.update_agent(db_id, role, goal, backstory, node_pos)
+                    crew_repo.update_agent(db_id, role, goal, backstory, model_id, node_pos)
                     request_agents.add(db_id)
                     id_map[f"agent-{db_id}"] = db_id
                 else:
-                    new_id = crew_repo.insert_agent(project_id, role, goal, backstory, node_pos)
+                    new_id = crew_repo.insert_agent(project_id, role, goal, backstory, model_id, node_pos)
                     request_agents.add(new_id)
                     id_map[node_id] = new_id
 
@@ -151,9 +155,25 @@ def execute_flow(project_id, nodes, edges):
         for edge_id in existing_edges - request_edges:
             crew_repo.delete_edge(edge_id)
 
-        run_crewai_flow(nodes, edges, id_map)
+        execution_id = crew_repo.create_execution(project_id=project_id, status=False)
+
+        def run_async():
+            try:
+                result = run_crewai_flow(nodes, edges, id_map)
+                crew_repo.update_execution(status=True, result=json.dumps(result['details']), execution_id=execution_id)
+            except Exception as e:
+                raise RuntimeError(f"execute_flow error: {str(e)}")
+        
+        Thread(target=run_async).start()
+
+        return {"execution_id": execution_id}
 
     except Exception as e:
         raise RuntimeError(f"execute_flow error: {str(e)}")
 
-
+def get_execution_status(execution_id):
+    try:
+        response = crew_repo.get_execution_status(execution_id)
+        return {"execution_id": response.id, "status": response.result}
+    except Exception as e:
+        raise RuntimeError(f"error: {str(e)}") 
