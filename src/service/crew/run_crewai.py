@@ -5,6 +5,7 @@ def run_crewai_flow(nodes, edges, id_map):
     try:
         agents_obj = {}
         tasks_obj = {}
+        task_dependencies = {}  
 
         # Agent 
         for node in nodes:
@@ -67,9 +68,10 @@ def run_crewai_flow(nodes, edges, id_map):
                     task = Task(
                         description=description,
                         expected_output=expected_output,
-                        agent=None
+                        agent=None  
                     )
                     tasks_obj[db_id] = task
+                    task_dependencies[db_id] = []
             except Exception as e:
                 print(f"[Task Creation Error] Node ID: {getattr(node, 'id', None)} - {str(e)}")
 
@@ -94,14 +96,21 @@ def run_crewai_flow(nodes, edges, id_map):
                 source_agent = agents_obj.get(source_id)
                 source_task = tasks_obj.get(source_id)
                 target_task = tasks_obj.get(target_id)
-                target_agent = agents_obj.get(target_id)
 
                 if source_agent and target_task:
                     target_task.agent = source_agent
+                
                 elif source_task and target_task:
-                    source_task.add_next(target_task)
+                    if target_id in task_dependencies:
+                        task_dependencies[target_id].append(source_id)
             except Exception as e:
                 print(f"[Edge Connection Error] Source: {source}, Target: {target} - {str(e)}")
+
+        for task_id, dependency_ids in task_dependencies.items():
+            if dependency_ids and task_id in tasks_obj:
+                context_tasks = [tasks_obj[dep_id] for dep_id in dependency_ids if dep_id in tasks_obj]
+                if context_tasks:
+                    tasks_obj[task_id].context = context_tasks
 
         agents_list = list(agents_obj.values())
         tasks_list = list(tasks_obj.values())
@@ -116,14 +125,14 @@ def run_crewai_flow(nodes, edges, id_map):
         workflow = []
 
         for task in tasks_list:
-             workflow.append({
-                "id": task.id,
-                "output": task.output
+            workflow.append({
+                "id": str(task.id),
+                "output": getattr(task.output, "__dict__", str(task.output))
             })
 
         return {
             "details": {
-                # "crew_id": crew.id,
+                "crew_id": str(crew.id),
                 "workflow": workflow,
                 "final_output": str(final_result)
             }

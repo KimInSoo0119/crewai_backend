@@ -62,6 +62,6 @@ def crew_flow_execute(request: ExecuteFlowRequest):
 def flow_status(execution_id: int):
     try:
         response = crew_service.get_execution_status(execution_id)
-        return {"status": "success", "data": response}
+        return {"data": response}
     except RuntimeError as e:
         raise HTTPException(status_code=400, detail=str(e))

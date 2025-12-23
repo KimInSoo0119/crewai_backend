@@ -173,7 +173,7 @@ def execute_flow(project_id, nodes, edges):
 
 def get_execution_status(execution_id):
     try:
-        response = crew_repo.get_execution_status(execution_id)
-        return {"execution_id": response.id, "status": response.result}
+        result = crew_repo.get_execution_status(execution_id)
+        return result
     except Exception as e:
         raise RuntimeError(f"error: {str(e)}") 

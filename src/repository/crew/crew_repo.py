@@ -289,8 +289,9 @@ def get_execution_status(execution_id):
 
         query = """
             SELECT
-                id, status
+                id, status, result
             FROM tb_execution
+            WHERE id=%s
         """
         cursor.execute(query, (execution_id,))
         result = cursor.fetchall()
