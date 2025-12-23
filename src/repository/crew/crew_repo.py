@@ -12,7 +12,8 @@ def create_crew(crewData):
             RETURNING id
         """
         cursor.execute(query, (crewData.title,))
-        project_id = cursor.fetchone()[0]
+        row = cursor.fetchone()
+        project_id = row['id']
 
         conn.commit()
         return project_id
