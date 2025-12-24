@@ -11,7 +11,7 @@ class AgentSave(BaseModel):
     role: str
     goal: str
     backstory: str
-    model_id: int
+    model_id: Optional[int] = None
 
 @router.post("/save")
 def save_agent(agent: AgentSave):

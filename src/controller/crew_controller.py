@@ -20,6 +20,8 @@ class EdgeData(BaseModel):
     dbId: Optional[int]
     source: str
     target: str
+    sourceHandle: str
+    targetHandle: str
 
 class ExecuteFlowRequest(BaseModel):
     project_id: int
@@ -38,6 +40,14 @@ def create_crew(crewData: CrewData):
 def get_crew_list():
     try:
         response = crew_service.get_crew_list()
+        return {"data": response}
+    except RuntimeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+@router.delete("/delete/{project_id}")
+def delete_crew(project_id: int):
+    try:
+        response = crew_service.delete_crew(project_id)
         return {"data": response}
     except RuntimeError as e:
         raise HTTPException(status_code=400, detail=str(e))

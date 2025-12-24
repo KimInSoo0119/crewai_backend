@@ -40,6 +40,25 @@ def get_crew_list():
     finally:
         release_db_connection(conn)
 
+def delete_crew(project_id):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+
+        query = """
+            DELETE FROM tb_project WHERE id = %s
+            RETURNING id
+        """
+        cursor.execute(query, (project_id,))
+        row = cursor.fetchone()
+        project_id = row['id']
+
+        conn.commit()
+        return project_id
+
+    finally:
+        release_db_connection(conn)
+
 def get_agents_info(project_id):
     conn = get_db_connection()
     try:
@@ -87,7 +106,7 @@ def get_edges_info(project_id):
 
         query = """
             SELECT
-                id, source_id, source_type, target_id, target_type
+                id, source_id, source_type, target_id, target_type, source_handle, target_handle
             FROM tb_edge
             WHERE project_id=%s
         """
@@ -209,14 +228,14 @@ def get_edges_info(project_id):
     finally:
         release_db_connection(conn)
 
-def insert_edge(project_id, source_type, source_id, target_type, target_id):
+def insert_edge(project_id, source_type, source_id, target_type, target_id, source_handle, target_handle):
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO tb_edge (project_id, source_type, source_id, target_type, target_id)
-            VALUES (%s, %s, %s, %s, %s) RETURNING id
-        """, (project_id, source_type, source_id, target_type, target_id))
+            INSERT INTO tb_edge (project_id, source_type, source_id, target_type, target_id, source_handle, target_handle)
+            VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id
+        """, (project_id, source_type, source_id, target_type, target_id, source_handle, target_handle))
         row = cursor.fetchone()
         edge_id = row['id']
         
@@ -226,15 +245,15 @@ def insert_edge(project_id, source_type, source_id, target_type, target_id):
     finally:
         release_db_connection(conn)
 
-def update_edge(edge_id, source_type, source_id, target_type, target_id):
+def update_edge(edge_id, source_type, source_id, target_type, target_id, source_handle, target_handle):
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
         cursor.execute("""
             UPDATE tb_edge
-            SET source_type=%s, source_id=%s, target_type=%s, target_id=%s
+            SET source_type=%s, source_id=%s, target_type=%s, target_id=%s, source_handle=%s, target_handle=%s
             WHERE id=%s
-        """, (source_type, source_id, target_type, target_id, edge_id))
+        """, (source_type, source_id, target_type, target_id, source_handle, target_handle, edge_id))
         
         conn.commit()
     

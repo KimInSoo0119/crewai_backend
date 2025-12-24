@@ -8,7 +8,7 @@ def run_crewai_flow(nodes, edges, id_map):
         task_dependencies = {}
         agent_tasks_map = {}  
 
-        # Agent 
+        # Agent 생성
         for node in nodes:
             try:
                 db_id = getattr(node, "dbId", None)
@@ -50,7 +50,7 @@ def run_crewai_flow(nodes, edges, id_map):
             except Exception as e:
                 print(f"[Agent Creation Error] Node ID: {getattr(node, 'id', None)} - {str(e)}")
 
-        # Task 
+        # Task 생성
         for node in nodes:
             try:
                 db_id = getattr(node, "dbId", None)
@@ -82,7 +82,7 @@ def run_crewai_flow(nodes, edges, id_map):
             except Exception as e:
                 print(f"[Task Creation Error] Node ID: {getattr(node, 'id', None)} - {str(e)}")
 
-        # Edge 
+        # Edge 처리
         for edge in edges:
             try:
                 source = getattr(edge, "source", None)
@@ -118,6 +118,22 @@ def run_crewai_flow(nodes, edges, id_map):
             except Exception as e:
                 print(f"[Edge Connection Error] Source: {source}, Target: {target} - {str(e)}")
 
+        tasks_without_agent = []
+        for task_id, task_obj in list(tasks_obj.items()):
+            if task_obj['task'].agent is None:
+                tasks_without_agent.append(task_id)
+                del tasks_obj[task_id]
+                if task_id in task_dependencies:
+                    del task_dependencies[task_id]
+                for deps in task_dependencies.values():
+                    if task_id in deps:
+                        deps.remove(task_id)
+
+        if tasks_without_agent:
+            print(f"[Warning] {len(tasks_without_agent)} task(s) were skipped due to missing agent assignment.")
+        if not tasks_obj:
+            raise ValueError("No valid tasks found. All tasks must be connected to an agent.")
+
         # Context 설정
         for task_id, dependency_ids in task_dependencies.items():
             if dependency_ids and task_id in tasks_obj:
@@ -127,7 +143,6 @@ def run_crewai_flow(nodes, edges, id_map):
 
         # Edge 정보 기반으로 Task 순서 정렬
         def sort_tasks_by_dependencies(tasks_obj, task_dependencies):
-            """Edge 정보를 기반으로 Task를 의존성 순서대로 정렬"""
             sorted_ids = []
             visited = set()
             visiting = set()
@@ -140,7 +155,6 @@ def run_crewai_flow(nodes, edges, id_map):
                 
                 visiting.add(task_id)
                 
-                # 의존하는 Task들을 먼저 방문 (선행 Task)
                 deps = task_dependencies.get(task_id, [])
                 for dep_id in deps:
                     if dep_id in tasks_obj:
@@ -150,7 +164,6 @@ def run_crewai_flow(nodes, edges, id_map):
                 visited.add(task_id)
                 sorted_ids.append(task_id)
             
-            # 모든 Task 방문
             for task_id in tasks_obj.keys():
                 visit(task_id)
             
@@ -159,6 +172,10 @@ def run_crewai_flow(nodes, edges, id_map):
         sorted_task_ids = sort_tasks_by_dependencies(tasks_obj, task_dependencies)
         tasks_list = [tasks_obj[task_id]['task'] for task_id in sorted_task_ids]
         agents_list = [agent for agent in agents_obj.values()]
+
+        for task in tasks_list:
+            if task.agent is None:
+                raise ValueError(f"Task '{task.description[:50]}...' has no agent assigned")
 
         crew = Crew(
             agents=agents_list,
@@ -196,4 +213,5 @@ def run_crewai_flow(nodes, edges, id_map):
         }
 
     except Exception as e:
+        print(f"[Crew Execution Error] {str(e)}")
         return {"status": "error", "message": str(e)}

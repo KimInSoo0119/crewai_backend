@@ -79,7 +79,7 @@ def get_llm_list():
 
         query = """
             SELECT
-                id, name
+                id, name, provider, api_base_url, create_time
             FROM tb_model
         """
         cursor.execute(query)

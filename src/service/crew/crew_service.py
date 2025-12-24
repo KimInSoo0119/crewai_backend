@@ -17,6 +17,13 @@ def get_crew_list():
     except Exception as e:
         raise RuntimeError(f"error: {str(e)}")
     
+def delete_crew(project_id):
+    try:
+        response = crew_repo.delete_crew(project_id)
+        return response
+    except Exception as e:
+        raise RuntimeError(f"error: {str(e)}")
+    
 def get_crew_flow(project_id):
     try:
         agents = crew_repo.get_agents_info(project_id)
@@ -61,7 +68,9 @@ def get_crew_flow(project_id):
                 "id": f"edge-{edge['id']}",
                 "dbId": edge['id'],
                 "source": f"{edge['source_type']}-{edge['source_id']}",
-                "target": f"{edge['target_type']}-{edge['target_id']}"
+                "target": f"{edge['target_type']}-{edge['target_id']}",
+                "sourceHandle": edge.get('source_handle'),  
+                "targetHandle": edge.get('target_handle'),
             })
 
         return {"nodes": nodes, "edges": edges}
@@ -126,6 +135,8 @@ def execute_flow(project_id, nodes, edges):
             db_id = getattr(edge, "dbId", None)
             source = getattr(edge, "source", "")
             target = getattr(edge, "target", "")
+            source_handle = getattr(edge, "sourceHandle", "")
+            target_handle = getattr(edge, "targetHandle", "")
 
             if "-" not in source or "-" not in target:
                 continue
@@ -146,10 +157,10 @@ def execute_flow(project_id, nodes, edges):
                 target_id = int(real_id)
 
             if db_id:
-                crew_repo.update_edge(db_id, source_type, source_id, target_type, target_id)
+                crew_repo.update_edge(db_id, source_type, source_id, target_type, target_id, source_handle, target_handle)
                 request_edges.add(db_id)
             else:
-                new_id = crew_repo.insert_edge(project_id, source_type, source_id, target_type, target_id)
+                new_id = crew_repo.insert_edge(project_id, source_type, source_id, target_type, target_id, source_handle, target_handle)
                 request_edges.add(new_id)
 
         for edge_id in existing_edges - request_edges:
