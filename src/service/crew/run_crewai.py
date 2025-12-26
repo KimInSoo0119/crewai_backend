@@ -6,7 +6,6 @@ def run_crewai_flow(nodes, edges, id_map):
         agents_obj = {}
         tasks_obj = {}
         task_dependencies = {}
-        agent_tasks_map = {}  
 
         # Agent 생성
         for node in nodes:
@@ -46,7 +45,6 @@ def run_crewai_flow(nodes, edges, id_map):
                         llm=crew_llm
                     )
                     agents_obj[db_id] = agent
-                    agent_tasks_map[db_id] = []  
             except Exception as e:
                 print(f"[Agent Creation Error] Node ID: {getattr(node, 'id', None)} - {str(e)}")
 
@@ -104,20 +102,21 @@ def run_crewai_flow(nodes, edges, id_map):
                 source_task_obj = tasks_obj.get(source_id)
                 target_task_obj = tasks_obj.get(target_id)
 
+                # agent → task 연결 (중복 할당 방지)
                 if source_agent and target_task_obj:
-                    target_task_obj['task'].agent = source_agent
-                    agent_tasks_map[source_id].append({
-                        'id': target_id,
-                        'name': target_task_obj['name'],
-                        'description': target_task_obj['description']
-                    })
+                    if target_task_obj['task'].agent is not None:
+                        print(f"[Warning] Task {target_id} already has an agent assigned. Skipping duplicate assignment.")
+                    else:
+                        target_task_obj['task'].agent = source_agent
                 
+                # task → task 의존성 연결
                 elif source_task_obj and target_task_obj:
                     if target_id in task_dependencies:
                         task_dependencies[target_id].append(source_id)
             except Exception as e:
                 print(f"[Edge Connection Error] Source: {source}, Target: {target} - {str(e)}")
 
+        # agent가 없는 task 제거
         tasks_without_agent = []
         for task_id, task_obj in list(tasks_obj.items()):
             if task_obj['task'].agent is None:
@@ -141,7 +140,7 @@ def run_crewai_flow(nodes, edges, id_map):
                 if context_tasks:
                     tasks_obj[task_id]['task'].context = context_tasks
 
-        # Edge 정보 기반으로 Task 순서 정렬
+        # Task 순서 정렬
         def sort_tasks_by_dependencies(tasks_obj, task_dependencies):
             sorted_ids = []
             visited = set()
@@ -186,12 +185,23 @@ def run_crewai_flow(nodes, edges, id_map):
 
         final_result = crew.kickoff() 
         
+        # 각 agent에 실제로 할당된 task만 포함
         agent_hierarchy = []
         for agent_id, agent in agents_obj.items():
+            assigned_tasks = []
+            for task_id, task_obj in tasks_obj.items():
+                # 실제 agent 객체를 비교하여 정확히 일치하는 task만 추가
+                if task_obj['task'].agent == agent:
+                    assigned_tasks.append({
+                        "id": task_id,
+                        "name": task_obj['name'],
+                        "description": task_obj['description']
+                    })
+            
             agent_hierarchy.append({
                 "agent_id": str(agent_id),
                 "agent_role": agent.role,
-                "tasks": agent_tasks_map.get(agent_id, [])
+                "tasks": assigned_tasks
             })
 
         workflow = []

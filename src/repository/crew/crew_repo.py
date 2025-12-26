@@ -208,26 +208,6 @@ def delete_task(task_id):
     finally:
         release_db_connection(conn)
 
-def get_edges_info(project_id):
-    conn = get_db_connection()
-    try:
-        cursor = conn.cursor()
-
-        query = """
-            SELECT
-                id, source_id, source_type, target_id, target_type
-            FROM tb_edge
-            WHERE project_id=%s
-        """
-        cursor.execute(query, (project_id,))
-        result = cursor.fetchall()
-
-        conn.commit()
-        return result
-
-    finally:
-        release_db_connection(conn)
-
 def insert_edge(project_id, source_type, source_id, target_type, target_id, source_handle, target_handle):
     conn = get_db_connection()
     try:

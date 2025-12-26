@@ -30,7 +30,7 @@ def get_crew_flow(project_id):
         tasks = crew_repo.get_tasks_info(project_id)
         edges_db = crew_repo.get_edges_info(project_id)
 
-        nodes = []
+        nodes = [] 
         for agent in agents:
             nodes.append({
                 "id": f"agent-{agent['id']}",
@@ -69,8 +69,8 @@ def get_crew_flow(project_id):
                 "dbId": edge['id'],
                 "source": f"{edge['source_type']}-{edge['source_id']}",
                 "target": f"{edge['target_type']}-{edge['target_id']}",
-                "sourceHandle": edge.get('source_handle'),  
-                "targetHandle": edge.get('target_handle'),
+                "sourceHandle": edge['source_handle'],  
+                "targetHandle": edge['target_handle'],
             })
 
         return {"nodes": nodes, "edges": edges}
@@ -102,6 +102,9 @@ def execute_flow(project_id, nodes, edges):
                 role = node_data.get("role", "")
                 goal = node_data.get("goal", "")
                 backstory = node_data.get("backstory", "")
+
+                if not model_id:
+                    raise ValueError(f"Agent '{role}' must have a model_id")
 
                 if db_id:
                     crew_repo.update_agent(db_id, role, goal, backstory, model_id, node_pos)
@@ -138,23 +141,29 @@ def execute_flow(project_id, nodes, edges):
             source_handle = getattr(edge, "sourceHandle", "")
             target_handle = getattr(edge, "targetHandle", "")
 
-            if "-" not in source or "-" not in target:
+            source_type = source_handle.split("-")[0] if source_handle and "-" in source_handle else None
+            target_type = target_handle.split("-")[0] if target_handle and "-" in target_handle else None
+    
+            if not source_type or not target_type:
                 continue
-
-            source_type, source_key = source.split("-", 1)
-            target_type, target_key = target.split("-", 1)
 
             if source in id_map:
                 source_id = id_map[source]
             else:
-                _, real_id = source.split("-", 1)
-                source_id = int(real_id)
+                if "-" in source:
+                    _, real_id = source.split("-", 1)
+                    source_id = int(real_id)
+                else:
+                    continue
 
             if target in id_map:
                 target_id = id_map[target]
             else:
-                _, real_id = target.split("-", 1)
-                target_id = int(real_id)
+                if "-" in target:
+                    _, real_id = target.split("-", 1)
+                    target_id = int(real_id)
+                else:
+                    continue
 
             if db_id:
                 crew_repo.update_edge(db_id, source_type, source_id, target_type, target_id, source_handle, target_handle)
