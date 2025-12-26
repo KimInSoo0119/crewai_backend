@@ -1,3 +1,4 @@
+import json
 from src.utils.db_client import get_db_connection, release_db_connection
 
 def create_agent(agent):
@@ -56,7 +57,8 @@ def find_one(project_id: int, agent_id: int):
                 a.goal,
                 a.backstory,
                 m.id as model_id,
-                m.name as model_name
+                m.name as model_name,
+                a.tools
             FROM tb_agent a
             LEFT JOIN tb_model m
                 ON a.model_id = m.id
@@ -72,3 +74,31 @@ def find_one(project_id: int, agent_id: int):
     finally:
         release_db_connection(conn)
 
+def save_agent_tools(tools):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+
+        query = """
+            UPDATE tb_agent
+            SET tools = COALESCE(tools, '[]'::jsonb) || %s::jsonb,
+                update_time = NOW()
+            WHERE id = %s
+            RETURNING id
+        """
+
+        tool_json = json.dumps(tools.tool.model_dump())
+
+        cursor.execute(
+            query,
+            (tool_json, tools.agent_id)
+        )
+
+        row = cursor.fetchone()
+        agent_id = row['id']
+
+        conn.commit()
+        return agent_id
+
+    finally:
+        release_db_connection(conn)
