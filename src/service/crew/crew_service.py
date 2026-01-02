@@ -180,7 +180,7 @@ def execute_flow(project_id, nodes, edges):
 
         def run_async():
             try:
-                result = run_crewai_flow(nodes, edges, id_map)
+                result = run_crewai_flow(nodes, edges, id_map, execution_id, crew_repo)
                 crew_repo.update_execution(status=True, result=json.dumps(result['details']), execution_id=execution_id)
             except Exception as e:
                 raise RuntimeError(f"execute_flow error: {str(e)}")

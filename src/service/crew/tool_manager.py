@@ -5,7 +5,7 @@ import os
 TOOL_REGISTRY: Dict[str, type] = {
     'WebSearchTool': SerperDevTool,
     'YoutubeChannelTool': YoutubeChannelSearchTool,
-    # 'GithubSearchTool': GithubSearchTool
+    'GithubSearchTool': GithubSearchTool
 }
 
 TOOL_CONFIG: Dict[str, Dict[str, Any]] = {
@@ -13,10 +13,10 @@ TOOL_CONFIG: Dict[str, Dict[str, Any]] = {
         'country': 'kr',
         'locale': 'ko'
     },
-    # 'GithubSearchTool': {
-    #     'gh_token': os.getenv('GH_TOKEN'),
-    #     'content_types': ['code', 'issue']
-    # }
+    'GithubSearchTool': {
+        'gh_token': os.getenv('GH_TOKEN'),
+        'content_types': ['code', 'issue']
+    }
 }
 
 def create_tool_instance(name: str) -> Optional[Any]:

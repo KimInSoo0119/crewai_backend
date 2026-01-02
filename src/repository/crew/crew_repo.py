@@ -1,5 +1,6 @@
 from src.utils.db_client import get_db_connection, release_db_connection
 from psycopg2.extras import Json
+import json
 
 def create_crew(crewData):
     conn = get_db_connection()
@@ -289,15 +290,79 @@ def get_execution_status(execution_id):
 
         query = """
             SELECT
-                id, status, result
+                id, project_id, status, result, create_time, update_time
             FROM tb_execution
             WHERE id=%s
         """
         cursor.execute(query, (execution_id,))
-        result = cursor.fetchall()
+        row = cursor.fetchone()
 
+        if not row:
+            return None
+        
+        return row
+    finally:
+        release_db_connection(conn)
+
+def update_execution_partial(execution_id, partial_data):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        
+        if "result" in partial_data:
+            result_to_save = partial_data["result"]
+        else:
+            cursor.execute("SELECT result FROM tb_execution WHERE id=%s", (execution_id,))
+            row = cursor.fetchone()
+            
+            if row and row['result']:
+                current_result = row['result'] 
+            else:
+                current_result = {
+                    "agent_hierarchy": [],
+                    "workflow": [],
+                    "crew_id": None,
+                    "final_output": None
+                }
+            
+            if "workflow_item" in partial_data:
+                current_result["workflow"].append(partial_data["workflow_item"])
+            
+            result_to_save = json.dumps(current_result)
+        
+        status = partial_data.get("status", False)
+        
+        query = """
+            UPDATE tb_execution
+            SET result = %s::jsonb,
+                status = %s,
+                update_time = now()
+            WHERE id = %s
+        """
+        cursor.execute(query, (result_to_save, status, execution_id))
         conn.commit()
-        return result
+        
+        return cursor.rowcount
+
+    finally:
+        release_db_connection(conn)
+
+def update_execution_final(execution_id, status, final_result):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+
+        query = """
+            UPDATE tb_execution
+            SET status = %s,
+                result = %s::jsonb,
+                update_time = now()
+            WHERE id = %s
+        """
+        cursor.execute(query, (status, json.dumps(final_result), execution_id))
+        conn.commit()
+        
+        return cursor.rowcount
 
     finally:
         release_db_connection(conn)

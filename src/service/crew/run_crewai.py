@@ -1,8 +1,9 @@
 from crewai import Agent, Task, Crew, LLM, Process
 from src.repository.llm import llm_repo
 from .tool_manager import get_tool_instances
+import json
 
-def run_crewai_flow(nodes, edges, id_map):
+def run_crewai_flow(nodes, edges, id_map, execution_id, crew_repo):
     try:
         agents_obj = {}
         tasks_obj = {}
@@ -181,21 +182,11 @@ def run_crewai_flow(nodes, edges, id_map):
             if task.agent is None:
                 raise ValueError(f"Task '{task.description[:50]}...' has no agent assigned")
 
-        crew = Crew(
-            agents=agents_list,
-            tasks=tasks_list,
-            process=Process.sequential,
-            verbose=True
-        )
-
-        final_result = crew.kickoff() 
-        
-        # 각 agent에 실제로 할당된 task만 포함
+        # agent_hierarchy 미리 생성
         agent_hierarchy = []
         for agent_id, agent in agents_obj.items():
             assigned_tasks = []
             for task_id, task_obj in tasks_obj.items():
-                # 실제 agent 객체를 비교하여 정확히 일치하는 task만 추가
                 if task_obj['task'].agent == agent:
                     assigned_tasks.append({
                         "id": task_id,
@@ -209,22 +200,118 @@ def run_crewai_flow(nodes, edges, id_map):
                 "tasks": assigned_tasks
             })
 
+        initial_result = {
+            "crew_id": None,
+            "agent_hierarchy": agent_hierarchy,
+            "workflow": [],
+            "final_output": None
+        }
+        
+        try:
+            crew_repo.update_execution_partial(execution_id, {
+                "status": False,
+                "result": json.dumps(initial_result)
+            })
+            print(f"[Execution Started] Total {len(sorted_task_ids)} tasks to execute")
+        except Exception as e:
+            print(f"[Warning] Failed to save initial state: {str(e)}")
+
+        crew = Crew(
+            agents=agents_list,
+            tasks=tasks_list,
+            process=Process.sequential,
+            verbose=True
+        )
+
+        # Task별 실시간 업데이트를 위한 변수
         workflow = []
+        crew_id_str = None
+
+        # 각 Task 실행 전에 콜백 설정
+        for idx, task_id in enumerate(sorted_task_ids):
+            task = tasks_obj[task_id]['task']
+            
+            def create_callback(current_task_id, current_idx):
+                """클로저로 task_id와 idx를 캡처"""
+                def callback(output):
+                    nonlocal crew_id_str
+                    try:
+                        # crew_id 얻기
+                        if crew_id_str is None and hasattr(crew, 'id'):
+                            crew_id_str = str(crew.id)
+                        
+                        # Task 결과 생성
+                        task_result = {
+                            "id": str(tasks_obj[current_task_id]['task'].id),
+                            "task_id": str(current_task_id),
+                            "name": tasks_obj[current_task_id]['name'],
+                            "output": getattr(output, "__dict__", str(output))
+                        }
+                        
+                        workflow.append(task_result)
+                        
+                        # DB 업데이트
+                        current_result = {
+                            "crew_id": crew_id_str,
+                            "agent_hierarchy": agent_hierarchy,
+                            "workflow": list(workflow),  
+                            "final_output": None
+                        }
+                        
+                        crew_repo.update_execution_partial(execution_id, {
+                            "status": False,
+                            "result": json.dumps(current_result)
+                        })
+                        
+                        print(f"[Task Completed] {current_idx + 1}/{len(sorted_task_ids)}: {tasks_obj[current_task_id]['name']}")
+                    except Exception as e:
+                        print(f"[Callback Error] Task {current_task_id}: {str(e)}")
+                
+                return callback
+            
+            task.callback = create_callback(task_id, idx)
+
+        # Crew 실행
+        final_result = crew.kickoff()
+        
+        # crew_id 최종 확인
+        if crew_id_str is None and hasattr(crew, 'id'):
+            crew_id_str = str(crew.id)
+        
+        # 누락된 Task 추가 (콜백이 실행되지 않은 경우)
         for task_id in sorted_task_ids:
             task = tasks_obj[task_id]['task']
-            workflow.append({
-                "id": str(task.id),
-                "name": tasks_obj[task_id]['name'],
-                "output": getattr(task.output, "__dict__", str(task.output))
-            })
+            already_added = any(w.get('task_id') == str(task_id) for w in workflow)
+            
+            if not already_added and task.output:
+                task_output = {
+                    "id": str(task.id),
+                    "task_id": str(task_id),
+                    "name": tasks_obj[task_id]['name'],
+                    "output": getattr(task.output, "__dict__", str(task.output))
+                }
+                workflow.append(task_output)
+                print(f"[Task Added Post-Execution] {tasks_obj[task_id]['name']}")
+
+        result_details = {
+            "crew_id": crew_id_str,
+            "agent_hierarchy": agent_hierarchy,  
+            "workflow": workflow,
+            "final_output": str(final_result)
+        }
+
+        try:
+            crew_repo.update_execution_final(
+                execution_id=execution_id,
+                status=True,
+                final_result=result_details
+            )
+            print(f"[Execution Completed] All {len(sorted_task_ids)} tasks finished successfully")
+        except Exception as e:
+            print(f"[Warning] Failed to save final result: {str(e)}")
 
         return {
-            "details": {
-                "crew_id": str(crew.id),
-                "agent_hierarchy": agent_hierarchy,  
-                "workflow": workflow,
-                "final_output": str(final_result)
-            }
+            "details": result_details
         }
 
     except Exception as e:
