@@ -102,3 +102,33 @@ def save_agent_tools(tools):
 
     finally:
         release_db_connection(conn)
+
+def delete_agent_tools(tools):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+
+        query = """
+            UPDATE tb_agent
+            SET tools = tools - (
+                SELECT (index - 1)::int
+                FROM jsonb_array_elements(tools) WITH ORDINALITY arr(elem, index) 
+                WHERE elem->>'name' = %s
+            )
+            WHERE id = %s
+            RETURNING id
+        """
+
+        cursor.execute(
+            query,
+            (tools.tool_name, tools.agent_id)
+        )
+
+        row = cursor.fetchone()
+        agent_id = row['id']
+
+        conn.commit()
+        return agent_id
+
+    finally:
+        release_db_connection(conn)

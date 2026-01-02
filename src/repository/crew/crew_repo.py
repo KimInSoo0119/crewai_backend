@@ -66,7 +66,7 @@ def get_agents_info(project_id):
 
         query = """
             SELECT
-                id, model_id, role, goal, backstory, position
+                id, model_id, role, goal, backstory, position, tools
             FROM tb_agent
             WHERE project_id=%s
         """

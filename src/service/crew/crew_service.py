@@ -43,7 +43,8 @@ def get_crew_flow(project_id):
                     "model_id": agent['model_id'],
                     "role": agent['role'],
                     "goal": agent['goal'],
-                    "backstory": agent['backstory']
+                    "backstory": agent['backstory'],
+                    "tools": agent['tools']
                 }
             })
 

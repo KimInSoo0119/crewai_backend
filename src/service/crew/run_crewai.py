@@ -1,5 +1,6 @@
 from crewai import Agent, Task, Crew, LLM, Process
 from src.repository.llm import llm_repo
+from .tool_manager import get_tool_instances
 
 def run_crewai_flow(nodes, edges, id_map):
     try:
@@ -25,6 +26,7 @@ def run_crewai_flow(nodes, edges, id_map):
                     goal = node_data.get('goal', '') 
                     backstory = node_data.get('backstory', '') 
                     model_id = node_data.get('model_id', None)
+                    tools_config = node_data.get('tools', [])
 
                     model_info = llm_repo.get_model_info(model_id)
 
@@ -38,11 +40,14 @@ def run_crewai_flow(nodes, edges, id_map):
                         base_url=model_base_url
                     )
 
+                    tool_instances = get_tool_instances(tools_config)
+
                     agent = Agent(
                         role=role,
                         goal=goal,
                         backstory=backstory,
-                        llm=crew_llm
+                        llm=crew_llm,
+                        tools=tool_instances if tool_instances else None
                     )
                     agents_obj[db_id] = agent
             except Exception as e:
