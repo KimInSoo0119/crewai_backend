@@ -1,0 +1,51 @@
+project:
+  name: "crew_config"
+  description: "crew 설정 정보"
+
+models:
+  custom:
+    name: "openai/gpt-oss-120b"
+    api_base_url: "http://gpurent.kogrobo.com:51089/v1"
+    api_key: "14987239852394087234902287"
+
+agents:
+  - id: researcher
+    role: "Market Research Analyst"
+    goal: "Conduct comprehensive market research on AI trends"
+    backstory: |
+      You are an experienced market analyst with 10 years of experience
+      in technology sector research.
+    model: custom
+    tools:
+      - WebSearchTool
+
+  - id: writer
+    role: "Technical Writer"
+    goal: "Create clear and engaging reports"
+    backstory: |
+      You are a professional technical writer who can explain complex
+      topics in simple terms.
+    model: custom
+    tools: []
+
+tasks:
+  - id: research_task
+    name: "Market Research"
+    agent: researcher
+    description: |
+      Research the latest trends in AI market for 2024-2025.
+      Focus on market size, key players, and emerging technologies.
+    expected_output: |
+      A detailed research report with market statistics and trends.
+    
+  - id: report_task
+    name: "Final Report Writing"
+    agent: writer
+    description: |
+      Create a comprehensive executive report based on the research findings.
+    expected_output: |
+      A polished executive report in markdown format.
+
+execution:
+  process: sequential
+  verbose: true

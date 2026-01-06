@@ -19,8 +19,8 @@ def connection_llm(llmInfo):
         cursor = conn.cursor()
 
         query = """
-            INSERT INTO tb_model (name, provider, api_base_url, is_active)
-            VALUES (%s, %s, %s, TRUE)
+            INSERT INTO tb_model (name, provider, api_base_url, is_active, create_time)
+            VALUES (%s, %s, %s, TRUE, NOW())
             RETURNING id
         """
         cursor.execute(query, (llmInfo.name, llmInfo.provider, llmInfo.api_base))
