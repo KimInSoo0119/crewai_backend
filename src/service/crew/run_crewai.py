@@ -19,7 +19,7 @@ def run_crewai_flow(nodes, edges, id_map, execution_id, crew_repo):
 
                 if node_type == 'agent':
                     if not db_id:
-                        db_id = id_map.get(node_id)
+                        db_id = id_map.get(node_id)  
                         if db_id is None:
                             raise ValueError(f"Unable to determine db_id for agent node: {node_id}")
 
@@ -219,7 +219,7 @@ def run_crewai_flow(nodes, edges, id_map, execution_id, crew_repo):
         crew = Crew(
             agents=agents_list,
             tasks=tasks_list,
-            process=Process.sequential,
+            process=Process.hierarchical,
             verbose=True
         )
 

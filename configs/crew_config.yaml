@@ -10,41 +10,38 @@ models:
 
 agents:
   - id: researcher
-    role: "Market Research Analyst"
-    goal: "Conduct comprehensive market research on AI trends"
+    role: "AI 뉴스 리서치"
+    goal: "AI 에이전트 관련 최신 뉴스를 웹 검색을 통해 수집하고 핵심 정보를 정리한다."
     backstory: |
-      You are an experienced market analyst with 10 years of experience
-      in technology sector research.
+      최첨단 기술 동향을 누구보다 빠르게 파악하는 전문 리서처
     model: custom
     tools:
       - WebSearchTool
 
-  - id: writer
-    role: "Technical Writer"
-    goal: "Create clear and engaging reports"
+  - id: summary
+    role: "AI 뉴스 요약 에이전트"
+    goal: "리서치 결과를 짧고 명확하게 요약한다."
     backstory: |
-      You are a professional technical writer who can explain complex
-      topics in simple terms.
+      방대한 데이터를 빠르게 요약하는 데 특화된 전문가.
     model: custom
     tools: []
 
 tasks:
   - id: research_task
-    name: "Market Research"
+    name: "AI 에이전트 관련 뉴스 조사"
     agent: researcher
     description: |
-      Research the latest trends in AI market for 2024-2025.
-      Focus on market size, key players, and emerging technologies.
+      AI 에이전트와 관련된 최근 뉴스, 트렌드, 기업 동향 등을 웹 검색을 통해 수집하라.
     expected_output: |
-      A detailed research report with market statistics and trends.
+      최신 기사 리스트와 핵심 요약 포인트
     
-  - id: report_task
-    name: "Final Report Writing"
-    agent: writer
+  - id: summary_task
+    name: "AI 뉴스 요약"
+    agent: summary
     description: |
-      Create a comprehensive executive report based on the research findings.
+      리서치 결과를 읽고 핵심 뉴스와 주요 내용을 5~7문장으로 요약하라
     expected_output: |
-      A polished executive report in markdown format.
+      주요 뉴스 요약
 
 execution:
   process: sequential

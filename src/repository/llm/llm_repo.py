@@ -48,7 +48,7 @@ def get_model_info(model_id: int):
 
         query = """
             SELECT 
-                id, name, tm.api_base_url, tms.api_key_encrypted
+                tm.id, name, tm.api_base_url, tms.api_key_encrypted
             FROM tb_model tm
             INNER JOIN tb_model_secret tms
             ON tm.id = tms.model_id
