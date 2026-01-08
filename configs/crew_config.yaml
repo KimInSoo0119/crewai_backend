@@ -9,7 +9,7 @@ models:
     api_key: "14987239852394087234902287"
 
 agents:
-  - id: researcher
+  - id: 1
     role: "AI 뉴스 리서치"
     goal: "AI 에이전트 관련 최신 뉴스를 웹 검색을 통해 수집하고 핵심 정보를 정리한다."
     backstory: |
@@ -18,7 +18,7 @@ agents:
     tools:
       - WebSearchTool
 
-  - id: summary
+  - id: 2
     role: "AI 뉴스 요약 에이전트"
     goal: "리서치 결과를 짧고 명확하게 요약한다."
     backstory: |
@@ -27,17 +27,17 @@ agents:
     tools: []
 
 tasks:
-  - id: research_task
+  - id: 1
     name: "AI 에이전트 관련 뉴스 조사"
-    agent: researcher
+    agent: 1
     description: |
       AI 에이전트와 관련된 최근 뉴스, 트렌드, 기업 동향 등을 웹 검색을 통해 수집하라.
     expected_output: |
       최신 기사 리스트와 핵심 요약 포인트
     
-  - id: summary_task
+  - id: 2
     name: "AI 뉴스 요약"
-    agent: summary
+    agent: 2
     description: |
       리서치 결과를 읽고 핵심 뉴스와 주요 내용을 5~7문장으로 요약하라
     expected_output: |

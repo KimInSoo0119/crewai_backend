@@ -19,7 +19,7 @@ class ToolModel(BaseModel):
     config: Optional[Dict[str, Any]] = {}
 
 class AgentToolSaveRequest(BaseModel):
-    agent_id: int
+    agent_id: Optional[int] = None
     tool: ToolModel
 
 class AgentToolDelRequest(BaseModel):

@@ -26,9 +26,9 @@ def delete_crew(project_id):
     
 def get_crew_flow(project_id):
     try:
-        agents = crew_repo.get_agents_info(project_id)
-        tasks = crew_repo.get_tasks_info(project_id)
-        edges_db = crew_repo.get_edges_info(project_id)
+        agents = crew_repo.get_agents_info(project_id) or []
+        tasks = crew_repo.get_tasks_info(project_id) or []
+        edges_db = crew_repo.get_edges_info(project_id) or []
 
         nodes = [] 
         for agent in agents:
@@ -178,14 +178,41 @@ def execute_flow(project_id, nodes, edges):
 
         execution_id = crew_repo.create_execution(project_id=project_id, status=False)
 
+        initial_result = {
+            "crew_id": None,
+            "agent_hierarchy": [],
+            "workflow": [],
+            "final_output": None
+        }
+        crew_repo.update_execution_partial(execution_id, {
+            "status": False,
+            "result": json.dumps(initial_result)
+        })
+
         def run_async():
             try:
                 result = run_crewai_flow(nodes, edges, id_map, execution_id, crew_repo)
                 crew_repo.update_execution(status=True, result=json.dumps(result['details']), execution_id=execution_id)
             except Exception as e:
-                raise RuntimeError(f"execute_flow error: {str(e)}")
+                error_msg = f"execute_flow error: {str(e)}"
+                print(error_msg)
+                
+                error_result = {
+                    "crew_id": None,
+                    "agent_hierarchy": [],
+                    "workflow": [],
+                    "final_output": None,
+                    "error": error_msg
+                }
+                crew_repo.update_execution_partial(execution_id, {
+                    "status": False,
+                    "result": json.dumps(error_result)
+                })
+                raise RuntimeError(error_msg)
         
-        Thread(target=run_async).start()
+        thread = Thread(target=run_async)
+        thread.daemon = False  
+        thread.start()
 
         return {"execution_id": execution_id}
 

@@ -146,7 +146,7 @@ def run_crewai_flow(nodes, edges, id_map, execution_id, crew_repo):
                 if context_tasks:
                     tasks_obj[task_id]['task'].context = context_tasks
 
-        # Task 순서 정렬
+        # Task 순서 정렬 (Edge 기반 dependency)
         def sort_tasks_by_dependencies(tasks_obj, task_dependencies):
             sorted_ids = []
             visited = set()
@@ -182,16 +182,32 @@ def run_crewai_flow(nodes, edges, id_map, execution_id, crew_repo):
             if task.agent is None:
                 raise ValueError(f"Task '{task.description[:50]}...' has no agent assigned")
 
-        # agent_hierarchy 미리 생성
         agent_hierarchy = []
-        for agent_id, agent in agents_obj.items():
+        processed_agents = set()
+
+        for task_id in sorted_task_ids:
+            task_obj = tasks_obj[task_id]
+            agent = task_obj['task'].agent
+            
+            agent_id = None
+            for aid, ag in agents_obj.items():
+                if ag == agent:
+                    agent_id = aid
+                    break
+            
+            if agent_id in processed_agents:
+                continue
+            
+            processed_agents.add(agent_id)
+            
             assigned_tasks = []
-            for task_id, task_obj in tasks_obj.items():
-                if task_obj['task'].agent == agent:
+            for tid in sorted_task_ids:  
+                if tasks_obj[tid]['task'].agent == agent:
                     assigned_tasks.append({
-                        "id": task_id,
-                        "name": task_obj['name'],
-                        "description": task_obj['description']
+                        "id": tid,
+                        "name": tasks_obj[tid]['name'],
+                        "description": tasks_obj[tid]['description'],
+                        "execution_order": sorted_task_ids.index(tid)  
                     })
             
             agent_hierarchy.append({
@@ -207,27 +223,21 @@ def run_crewai_flow(nodes, edges, id_map, execution_id, crew_repo):
             "final_output": None
         }
         
-        try:
-            crew_repo.update_execution_partial(execution_id, {
-                "status": False,
-                "result": json.dumps(initial_result)
-            })
-            print(f"[Execution Started] Total {len(sorted_task_ids)} tasks to execute")
-        except Exception as e:
-            print(f"[Warning] Failed to save initial state: {str(e)}")
+        crew_repo.update_execution_partial(execution_id, {
+            "status": False,
+            "result": json.dumps(initial_result)
+        })
 
         crew = Crew(
             agents=agents_list,
             tasks=tasks_list,
-            process=Process.hierarchical,
+            process=Process.sequential,
             verbose=True
         )
 
-        # Task별 실시간 업데이트를 위한 변수
         workflow = []
         crew_id_str = None
 
-        # 각 Task 실행 전에 콜백 설정
         for idx, task_id in enumerate(sorted_task_ids):
             task = tasks_obj[task_id]['task']
             
@@ -236,25 +246,48 @@ def run_crewai_flow(nodes, edges, id_map, execution_id, crew_repo):
                 def callback(output):
                     nonlocal crew_id_str
                     try:
-                        # crew_id 얻기
                         if crew_id_str is None and hasattr(crew, 'id'):
                             crew_id_str = str(crew.id)
                         
-                        # Task 결과 생성
+                        output_content = None
+                        output_dict = {}
+                        
+                        if hasattr(output, 'raw'):
+                            output_content = output.raw
+                            output_dict = {
+                                'raw': output.raw,
+                                'pydantic': getattr(output, 'pydantic', None),
+                                'json_dict': getattr(output, 'json_dict', None),
+                                'agent': getattr(output, 'agent', ''),
+                                'summary': getattr(output, 'summary', '')
+                            }
+                        elif hasattr(output, 'result'):
+                            output_content = output.result
+                            output_dict = {'result': output.result}
+                        elif hasattr(output, 'output'):
+                            output_content = output.output
+                            output_dict = {'output': output.output}
+                        elif hasattr(output, '__dict__'):
+                            output_dict = output.__dict__
+                            output_content = str(output)
+                        else:
+                            output_content = str(output)
+                            output_dict = {'raw': str(output)}
+                        
                         task_result = {
                             "id": str(tasks_obj[current_task_id]['task'].id),
                             "task_id": str(current_task_id),
                             "name": tasks_obj[current_task_id]['name'],
-                            "output": getattr(output, "__dict__", str(output))
+                            "output": output_dict,
+                            "execution_order": sorted_task_ids.index(current_task_id)
                         }
                         
                         workflow.append(task_result)
-                        
-                        # DB 업데이트
+
                         current_result = {
                             "crew_id": crew_id_str,
                             "agent_hierarchy": agent_hierarchy,
-                            "workflow": list(workflow),  
+                            "workflow": list(workflow),
                             "final_output": None
                         }
                         
@@ -264,6 +297,9 @@ def run_crewai_flow(nodes, edges, id_map, execution_id, crew_repo):
                         })
                         
                         print(f"[Task Completed] {current_idx + 1}/{len(sorted_task_ids)}: {tasks_obj[current_task_id]['name']}")
+                        preview = str(output_content)[:200] if output_content else "No content"
+                        print(f"[Task Output Preview] {preview}...")
+                        
                     except Exception as e:
                         print(f"[Callback Error] Task {current_task_id}: {str(e)}")
                 
@@ -271,44 +307,62 @@ def run_crewai_flow(nodes, edges, id_map, execution_id, crew_repo):
             
             task.callback = create_callback(task_id, idx)
 
-        # Crew 실행
         final_result = crew.kickoff()
         
-        # crew_id 최종 확인
         if crew_id_str is None and hasattr(crew, 'id'):
             crew_id_str = str(crew.id)
         
-        # 누락된 Task 추가 (콜백이 실행되지 않은 경우)
         for task_id in sorted_task_ids:
             task = tasks_obj[task_id]['task']
             already_added = any(w.get('task_id') == str(task_id) for w in workflow)
             
             if not already_added and task.output:
+                output_dict = {}
+                if hasattr(task.output, 'raw'):
+                    output_dict = {
+                        'raw': task.output.raw,
+                        'pydantic': getattr(task.output, 'pydantic', None),
+                        'json_dict': getattr(task.output, 'json_dict', None),
+                        'agent': getattr(task.output, 'agent', ''),
+                        'summary': getattr(task.output, 'summary', '')
+                    }
+                elif hasattr(task.output, '__dict__'):
+                    output_dict = task.output.__dict__
+                else:
+                    output_dict = {'raw': str(task.output)}
+                
                 task_output = {
                     "id": str(task.id),
                     "task_id": str(task_id),
                     "name": tasks_obj[task_id]['name'],
-                    "output": getattr(task.output, "__dict__", str(task.output))
+                    "output": output_dict,
+                    "execution_order": sorted_task_ids.index(task_id)
                 }
                 workflow.append(task_output)
                 print(f"[Task Added Post-Execution] {tasks_obj[task_id]['name']}")
 
+        final_output_str = None
+        if hasattr(final_result, 'raw'):
+            final_output_str = final_result.raw
+        elif hasattr(final_result, 'result'):
+            final_output_str = final_result.result
+        elif hasattr(final_result, '__str__'):
+            final_output_str = str(final_result)
+        else:
+            final_output_str = str(final_result)
+
         result_details = {
             "crew_id": crew_id_str,
-            "agent_hierarchy": agent_hierarchy,  
+            "agent_hierarchy": agent_hierarchy,
             "workflow": workflow,
-            "final_output": str(final_result)
+            "final_output": final_output_str
         }
 
-        try:
-            crew_repo.update_execution_final(
-                execution_id=execution_id,
-                status=True,
-                final_result=result_details
-            )
-            print(f"[Execution Completed] All {len(sorted_task_ids)} tasks finished successfully")
-        except Exception as e:
-            print(f"[Warning] Failed to save final result: {str(e)}")
+        crew_repo.update_execution_final(
+            execution_id=execution_id,
+            status=True,
+            final_result=result_details
+        )
 
         return {
             "details": result_details
