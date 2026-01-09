@@ -35,7 +35,7 @@ def update_task(task):
             WHERE id=%s
             RETURNING id, project_id, agent_id, name, description, expected_output, position, create_time, update_time
         """
-        cursor.execute(query, (task.name, task.description, task.expected_output, task.position, task.id))
+        cursor.execute(query, (task.name, task.description, task.expected_output, json.dumps(task.position), task.id))
         result = cursor.fetchall()
 
         conn.commit()
