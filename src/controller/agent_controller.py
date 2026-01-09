@@ -13,13 +13,14 @@ class AgentSave(BaseModel):
     goal: str
     backstory: str
     model_id: Optional[int] = None
+    position: Optional[dict] = None
 
 class ToolModel(BaseModel):
     name: str
     config: Optional[Dict[str, Any]] = {}
 
 class AgentToolSaveRequest(BaseModel):
-    agent_id: Optional[int] = None
+    agent_id: int
     tool: ToolModel
 
 class AgentToolDelRequest(BaseModel):

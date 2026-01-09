@@ -1,6 +1,14 @@
+from dotenv import load_dotenv
+import os
+
+# 가장 먼저 환경변수 로드
+load_dotenv()
+
+# 환경변수 확인 (디버깅용)
+print(f"OPENAI_API_KEY loaded: {bool(os.getenv('OPENAI_API_KEY'))}")
+
 from typing import Dict, Any, List, Optional
 from crewai_tools import SerperDevTool, YoutubeChannelSearchTool, GithubSearchTool
-import os
 
 TOOL_REGISTRY: Dict[str, type] = {
     'WebSearchTool': SerperDevTool,
@@ -12,6 +20,9 @@ TOOL_CONFIG: Dict[str, Dict[str, Any]] = {
     'WebSearchTool': {
         'country': 'kr',
         'locale': 'ko'
+    },
+    'YoutubeChannelTool': {
+        'youtube_api_key': os.getenv("YOUTUBE_API_KEY")
     },
     'GithubSearchTool': {
         'gh_token': os.getenv('GH_TOKEN'),
@@ -26,7 +37,6 @@ def create_tool_instance(name: str) -> Optional[Any]:
 
     try:
         config = TOOL_CONFIG.get(name)
-
         tool_instance = tool_class(**config) if config else tool_class()
         return tool_instance
     except Exception as e:

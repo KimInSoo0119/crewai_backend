@@ -10,7 +10,6 @@ dependencies = [
     "fastapi>=0.124.0",
     "langchain-openai>=1.1.6",
     "litellm>=1.79.0,<1.80.10",
-    "psycopg2-binary>=2.9.11",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.0.0",
     "python-dotenv>=1.2.1",
@@ -18,5 +17,7 @@ dependencies = [
     "uvicorn>=0.38.0",
     "langchain-google-community>=3.0.0",
     "google-auth-oauthlib>=1.2.3",
+    "psycopg2-binary>=2.9.11",
+    "pygithub>=2.8.1",
 ]
 

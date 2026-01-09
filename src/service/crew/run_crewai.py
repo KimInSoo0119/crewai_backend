@@ -38,7 +38,8 @@ def run_crewai_flow(nodes, edges, id_map, execution_id, crew_repo):
                     crew_llm = LLM( 
                         model=f"openai/{model_name}",
                         api_key=model_api_key,
-                        base_url=model_base_url
+                        base_url=model_base_url,
+                        temperature=0.1
                     )
 
                     tool_instances = get_tool_instances(tools_config)

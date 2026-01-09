@@ -12,6 +12,7 @@ class TaskSave(BaseModel):
     name: str
     description: str
     expected_output: str
+    position: Optional[dict] = None
 
 @router.post("/save")
 def save_task(task: TaskSave):
