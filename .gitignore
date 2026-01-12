@@ -10,7 +10,7 @@ venv/
 venv.bak/
 
 # Environment variables
-.env
+# .env
 
 # Distribution / packaging
 build/

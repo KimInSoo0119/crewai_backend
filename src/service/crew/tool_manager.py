@@ -1,13 +1,12 @@
 from dotenv import load_dotenv
 import os
 from typing import Dict, Any, List, Optional
-from crewai_tools import SerperDevTool, YoutubeChannelSearchTool, GithubSearchTool
+from crewai_tools import SerperDevTool, GithubSearchTool
 
 load_dotenv()
 
 TOOL_REGISTRY: Dict[str, type] = {
     'WebSearchTool': SerperDevTool,
-    'YoutubeChannelTool': YoutubeChannelSearchTool,
     'GithubSearchTool': GithubSearchTool
 }
 
@@ -15,9 +14,6 @@ TOOL_CONFIG: Dict[str, Dict[str, Any]] = {
     'WebSearchTool': {
         'country': 'kr',
         'locale': 'ko'
-    },
-    'YoutubeChannelTool': {
-        'youtube_api_key': os.getenv("YOUTUBE_API_KEY")
     },
     'GithubSearchTool': {
         'gh_token': os.getenv('GH_TOKEN'),
