@@ -19,8 +19,8 @@ def connection_llm(llmInfo):
         cursor = conn.cursor()
 
         query = """
-            INSERT INTO tb_model (name, provider, api_base_url, is_active)
-            VALUES (%s, %s, %s, TRUE)
+            INSERT INTO tb_model (name, provider, api_base_url, is_active, create_time)
+            VALUES (%s, %s, %s, TRUE, NOW())
             RETURNING id
         """
         cursor.execute(query, (llmInfo.name, llmInfo.provider, llmInfo.api_base))
@@ -48,7 +48,7 @@ def get_model_info(model_id: int):
 
         query = """
             SELECT 
-                id, name, tm.api_base_url, tms.api_key_encrypted
+                tm.id, name, tm.api_base_url, tms.api_key_encrypted
             FROM tb_model tm
             INNER JOIN tb_model_secret tms
             ON tm.id = tms.model_id
@@ -66,7 +66,6 @@ def get_model_info(model_id: int):
             "api_key": decrypted_api_key
         }
         
-        conn.commit()
         return model_info
 
     finally:
@@ -85,7 +84,6 @@ def get_llm_list():
         cursor.execute(query)
         result = cursor.fetchall()
 
-        conn.commit()
         return result
 
     finally:
@@ -104,7 +102,6 @@ def get_provider_list():
         cursor.execute(query)
         result = cursor.fetchall()
 
-        conn.commit()
         return result
 
     finally:

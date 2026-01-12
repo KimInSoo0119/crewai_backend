@@ -18,3 +18,10 @@ def save_agent_tools(tools):
         return agent_id
     except Exception as e:
         raise RuntimeError(f"error: {str(e)}")
+    
+def delete_agent_tools(tools):
+    try:
+        agent_id = agent_repo.delete_agent_tools(tools)
+        return agent_id
+    except Exception as e:
+        raise RuntimeError(f"error: {str(e)}")

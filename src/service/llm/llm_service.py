@@ -1,5 +1,4 @@
 import requests
-from cryptography.fernet import Fernet
 from src.repository.llm import llm_repo
 
 def connection_llm(llmInfo):
@@ -11,7 +10,7 @@ def connection_llm(llmInfo):
             raise RuntimeError(f"Failed to connect to LLM API. Status code: {res.status_code}")
         
         model_id = llm_repo.connection_llm(llmInfo)
-        return {"success": True, "model_id": model_id, "message": "LLM connected and saved successfully"}
+        return model_id
     except Exception as e:
         raise RuntimeError(f"error: {str(e)}")
     

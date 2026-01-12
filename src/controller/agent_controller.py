@@ -13,6 +13,7 @@ class AgentSave(BaseModel):
     goal: str
     backstory: str
     model_id: Optional[int] = None
+    position: Optional[dict] = None
 
 class ToolModel(BaseModel):
     name: str
@@ -22,11 +23,15 @@ class AgentToolSaveRequest(BaseModel):
     agent_id: int
     tool: ToolModel
 
+class AgentToolDelRequest(BaseModel):
+    agent_id: int
+    tool_name: str
+
 @router.post("/save")
 def save_agent(agent: AgentSave):
     try:
         response = agent_service.save_agent(agent)
-        return response
+        return {"data": response}
     except RuntimeError as e:
         raise HTTPException(status_code=400, detail=str(e))
     
@@ -44,6 +49,14 @@ def get_agent(project_id: int, agent_id: int):
 def save_agent_tools(tools: AgentToolSaveRequest):
     try:
         response = agent_service.save_agent_tools(tools)
+        return {"data": response}
+    except RuntimeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+@router.post("/tools/del")
+def delete_agent_tools(tools: AgentToolDelRequest):
+    try:
+        response = agent_service.delete_agent_tools(tools)
         return {"data": response}
     except RuntimeError as e:
         raise HTTPException(status_code=400, detail=str(e))

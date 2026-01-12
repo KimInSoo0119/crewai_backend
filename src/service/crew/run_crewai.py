@@ -1,7 +1,9 @@
 from crewai import Agent, Task, Crew, LLM, Process
 from src.repository.llm import llm_repo
+from .tool_manager import get_tool_instances
+import json
 
-def run_crewai_flow(nodes, edges, id_map):
+def run_crewai_flow(nodes, edges, id_map, execution_id, crew_repo):
     try:
         agents_obj = {}
         tasks_obj = {}
@@ -17,7 +19,7 @@ def run_crewai_flow(nodes, edges, id_map):
 
                 if node_type == 'agent':
                     if not db_id:
-                        db_id = id_map.get(node_id)
+                        db_id = id_map.get(node_id)  
                         if db_id is None:
                             raise ValueError(f"Unable to determine db_id for agent node: {node_id}")
 
@@ -25,6 +27,7 @@ def run_crewai_flow(nodes, edges, id_map):
                     goal = node_data.get('goal', '') 
                     backstory = node_data.get('backstory', '') 
                     model_id = node_data.get('model_id', None)
+                    tools_config = node_data.get('tools', [])
 
                     model_info = llm_repo.get_model_info(model_id)
 
@@ -35,14 +38,18 @@ def run_crewai_flow(nodes, edges, id_map):
                     crew_llm = LLM( 
                         model=f"openai/{model_name}",
                         api_key=model_api_key,
-                        base_url=model_base_url
+                        base_url=model_base_url,
+                        temperature=0.1
                     )
+
+                    tool_instances = get_tool_instances(tools_config)
 
                     agent = Agent(
                         role=role,
                         goal=goal,
                         backstory=backstory,
-                        llm=crew_llm
+                        llm=crew_llm,
+                        tools=tool_instances if tool_instances else None
                     )
                     agents_obj[db_id] = agent
             except Exception as e:
@@ -140,7 +147,7 @@ def run_crewai_flow(nodes, edges, id_map):
                 if context_tasks:
                     tasks_obj[task_id]['task'].context = context_tasks
 
-        # Task 순서 정렬
+        # Task 순서 정렬 (Edge 기반 dependency)
         def sort_tasks_by_dependencies(tasks_obj, task_dependencies):
             sorted_ids = []
             visited = set()
@@ -176,26 +183,32 @@ def run_crewai_flow(nodes, edges, id_map):
             if task.agent is None:
                 raise ValueError(f"Task '{task.description[:50]}...' has no agent assigned")
 
-        crew = Crew(
-            agents=agents_list,
-            tasks=tasks_list,
-            process=Process.sequential,
-            verbose=True
-        )
-
-        final_result = crew.kickoff() 
-        
-        # 각 agent에 실제로 할당된 task만 포함
         agent_hierarchy = []
-        for agent_id, agent in agents_obj.items():
+        processed_agents = set()
+
+        for task_id in sorted_task_ids:
+            task_obj = tasks_obj[task_id]
+            agent = task_obj['task'].agent
+            
+            agent_id = None
+            for aid, ag in agents_obj.items():
+                if ag == agent:
+                    agent_id = aid
+                    break
+            
+            if agent_id in processed_agents:
+                continue
+            
+            processed_agents.add(agent_id)
+            
             assigned_tasks = []
-            for task_id, task_obj in tasks_obj.items():
-                # 실제 agent 객체를 비교하여 정확히 일치하는 task만 추가
-                if task_obj['task'].agent == agent:
+            for tid in sorted_task_ids:  
+                if tasks_obj[tid]['task'].agent == agent:
                     assigned_tasks.append({
-                        "id": task_id,
-                        "name": task_obj['name'],
-                        "description": task_obj['description']
+                        "id": tid,
+                        "name": tasks_obj[tid]['name'],
+                        "description": tasks_obj[tid]['description'],
+                        "execution_order": sorted_task_ids.index(tid)  
                     })
             
             agent_hierarchy.append({
@@ -204,22 +217,156 @@ def run_crewai_flow(nodes, edges, id_map):
                 "tasks": assigned_tasks
             })
 
+        initial_result = {
+            "crew_id": None,
+            "agent_hierarchy": agent_hierarchy,
+            "workflow": [],
+            "final_output": None
+        }
+        
+        crew_repo.update_execution_partial(execution_id, {
+            "status": False,
+            "result": json.dumps(initial_result)
+        })
+
+        crew = Crew(
+            agents=agents_list,
+            tasks=tasks_list,
+            process=Process.sequential,
+            verbose=True
+        )
+
         workflow = []
+        crew_id_str = None
+
+        for idx, task_id in enumerate(sorted_task_ids):
+            task = tasks_obj[task_id]['task']
+            
+            def create_callback(current_task_id, current_idx):
+                """클로저로 task_id와 idx를 캡처"""
+                def callback(output):
+                    nonlocal crew_id_str
+                    try:
+                        if crew_id_str is None and hasattr(crew, 'id'):
+                            crew_id_str = str(crew.id)
+                        
+                        output_content = None
+                        output_dict = {}
+                        
+                        if hasattr(output, 'raw'):
+                            output_content = output.raw
+                            output_dict = {
+                                'raw': output.raw,
+                                'pydantic': getattr(output, 'pydantic', None),
+                                'json_dict': getattr(output, 'json_dict', None),
+                                'agent': getattr(output, 'agent', ''),
+                                'summary': getattr(output, 'summary', '')
+                            }
+                        elif hasattr(output, 'result'):
+                            output_content = output.result
+                            output_dict = {'result': output.result}
+                        elif hasattr(output, 'output'):
+                            output_content = output.output
+                            output_dict = {'output': output.output}
+                        elif hasattr(output, '__dict__'):
+                            output_dict = output.__dict__
+                            output_content = str(output)
+                        else:
+                            output_content = str(output)
+                            output_dict = {'raw': str(output)}
+                        
+                        task_result = {
+                            "id": str(tasks_obj[current_task_id]['task'].id),
+                            "task_id": str(current_task_id),
+                            "name": tasks_obj[current_task_id]['name'],
+                            "output": output_dict,
+                            "execution_order": sorted_task_ids.index(current_task_id)
+                        }
+                        
+                        workflow.append(task_result)
+
+                        current_result = {
+                            "crew_id": crew_id_str,
+                            "agent_hierarchy": agent_hierarchy,
+                            "workflow": list(workflow),
+                            "final_output": None
+                        }
+                        
+                        crew_repo.update_execution_partial(execution_id, {
+                            "status": False,
+                            "result": json.dumps(current_result)
+                        })
+                        
+                        print(f"[Task Completed] {current_idx + 1}/{len(sorted_task_ids)}: {tasks_obj[current_task_id]['name']}")
+                        preview = str(output_content)[:200] if output_content else "No content"
+                        print(f"[Task Output Preview] {preview}...")
+                        
+                    except Exception as e:
+                        print(f"[Callback Error] Task {current_task_id}: {str(e)}")
+                
+                return callback
+            
+            task.callback = create_callback(task_id, idx)
+
+        final_result = crew.kickoff()
+        
+        if crew_id_str is None and hasattr(crew, 'id'):
+            crew_id_str = str(crew.id)
+        
         for task_id in sorted_task_ids:
             task = tasks_obj[task_id]['task']
-            workflow.append({
-                "id": str(task.id),
-                "name": tasks_obj[task_id]['name'],
-                "output": getattr(task.output, "__dict__", str(task.output))
-            })
+            already_added = any(w.get('task_id') == str(task_id) for w in workflow)
+            
+            if not already_added and task.output:
+                output_dict = {}
+                if hasattr(task.output, 'raw'):
+                    output_dict = {
+                        'raw': task.output.raw,
+                        'pydantic': getattr(task.output, 'pydantic', None),
+                        'json_dict': getattr(task.output, 'json_dict', None),
+                        'agent': getattr(task.output, 'agent', ''),
+                        'summary': getattr(task.output, 'summary', '')
+                    }
+                elif hasattr(task.output, '__dict__'):
+                    output_dict = task.output.__dict__
+                else:
+                    output_dict = {'raw': str(task.output)}
+                
+                task_output = {
+                    "id": str(task.id),
+                    "task_id": str(task_id),
+                    "name": tasks_obj[task_id]['name'],
+                    "output": output_dict,
+                    "execution_order": sorted_task_ids.index(task_id)
+                }
+                workflow.append(task_output)
+                print(f"[Task Added Post-Execution] {tasks_obj[task_id]['name']}")
+
+        final_output_str = None
+        if hasattr(final_result, 'raw'):
+            final_output_str = final_result.raw
+        elif hasattr(final_result, 'result'):
+            final_output_str = final_result.result
+        elif hasattr(final_result, '__str__'):
+            final_output_str = str(final_result)
+        else:
+            final_output_str = str(final_result)
+
+        result_details = {
+            "crew_id": crew_id_str,
+            "agent_hierarchy": agent_hierarchy,
+            "workflow": workflow,
+            "final_output": final_output_str
+        }
+
+        crew_repo.update_execution_final(
+            execution_id=execution_id,
+            status=True,
+            final_result=result_details
+        )
 
         return {
-            "details": {
-                "crew_id": str(crew.id),
-                "agent_hierarchy": agent_hierarchy,  
-                "workflow": workflow,
-                "final_output": str(final_result)
-            }
+            "details": result_details
         }
 
     except Exception as e:

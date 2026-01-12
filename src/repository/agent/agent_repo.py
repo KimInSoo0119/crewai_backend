@@ -7,11 +7,11 @@ def create_agent(agent):
         cursor = conn.cursor()
 
         query = """
-            INSERT INTO tb_agent (project_id, role, goal, backstory, model_id)
-            VALUES (%s, %s, %s, %s, %s)
-            RETURNING id, project_id, role, goal, backstory, model_id, create_time, update_time
+            INSERT INTO tb_agent (project_id, role, goal, backstory, model_id, position)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING id, project_id, role, goal, backstory, model_id, position, create_time, update_time
         """
-        cursor.execute(query, (agent.project_id, agent.role, agent.goal, agent.backstory, agent.model_id))
+        cursor.execute(query, (agent.project_id, agent.role, agent.goal, agent.backstory, agent.model_id, json.dumps(agent.position)))
         result = cursor.fetchall()
 
         conn.commit()
@@ -31,11 +31,12 @@ def update_agent(agent):
                 goal=%s,
                 backstory=%s,
                 model_id=%s,
+                position=%s,
                 update_time=NOW()
             WHERE id=%s
-            RETURNING id, project_id, role, goal, backstory, model_id, create_time, update_time
+            RETURNING id, project_id, role, goal, backstory, model_id, position, create_time, update_time
         """
-        cursor.execute(query, (agent.role, agent.goal, agent.backstory, agent.model_id, agent.id))
+        cursor.execute(query, (agent.role, agent.goal, agent.backstory, agent.model_id, json.dumps(agent.position), agent.id))
         result = cursor.fetchall()
 
         conn.commit()
@@ -68,7 +69,6 @@ def find_one(project_id: int, agent_id: int):
         cursor.execute(query, (project_id, agent_id))
         result = cursor.fetchall()
 
-        conn.commit()
         return result
 
     finally:
@@ -92,6 +92,36 @@ def save_agent_tools(tools):
         cursor.execute(
             query,
             (tool_json, tools.agent_id)
+        )
+
+        row = cursor.fetchone()
+        agent_id = row['id']
+
+        conn.commit()
+        return agent_id
+
+    finally:
+        release_db_connection(conn)
+
+def delete_agent_tools(tools):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+
+        query = """
+            UPDATE tb_agent
+            SET tools = tools - (
+                SELECT (index - 1)::int
+                FROM jsonb_array_elements(tools) WITH ORDINALITY arr(elem, index) 
+                WHERE elem->>'name' = %s
+            )
+            WHERE id = %s
+            RETURNING id
+        """
+
+        cursor.execute(
+            query,
+            (tools.tool_name, tools.agent_id)
         )
 
         row = cursor.fetchone()

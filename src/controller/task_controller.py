@@ -12,12 +12,13 @@ class TaskSave(BaseModel):
     name: str
     description: str
     expected_output: str
+    position: Optional[dict] = None
 
 @router.post("/save")
 def save_task(task: TaskSave):
     try:
         response = task_service.save_task(task)
-        return response
+        return {"data": response}
     except RuntimeError as e:
         raise HTTPException(status_code=400, detail=str(e))
     

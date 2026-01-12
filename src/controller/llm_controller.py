@@ -14,7 +14,7 @@ class llmInfo(BaseModel):
 def connection_llm(llmInfo: llmInfo):
     try:
         response = llm_service.connection_llm(llmInfo)
-        return response
+        return {"data": response}
     except RuntimeError as e:
         raise HTTPException(status_code=400, detail=str(e))
     

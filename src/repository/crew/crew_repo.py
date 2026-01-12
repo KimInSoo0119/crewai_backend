@@ -1,5 +1,6 @@
 from src.utils.db_client import get_db_connection, release_db_connection
 from psycopg2.extras import Json
+import json
 
 def create_crew(crewData):
     conn = get_db_connection()
@@ -34,7 +35,6 @@ def get_crew_list():
         cursor.execute(query)
         result = cursor.fetchall()
 
-        conn.commit()
         return result
 
     finally:
@@ -66,14 +66,13 @@ def get_agents_info(project_id):
 
         query = """
             SELECT
-                id, model_id, role, goal, backstory, position
+                id, model_id, role, goal, backstory, position, tools
             FROM tb_agent
             WHERE project_id=%s
         """
         cursor.execute(query, (project_id,))
         result = cursor.fetchall()
 
-        conn.commit()
         return result
 
     finally:
@@ -93,7 +92,6 @@ def get_tasks_info(project_id):
         cursor.execute(query, (project_id,))
         result = cursor.fetchall()
 
-        conn.commit()
         return result
 
     finally:
@@ -113,7 +111,6 @@ def get_edges_info(project_id):
         cursor.execute(query, (project_id,))
         result = cursor.fetchall()
 
-        conn.commit()
         return result
 
     finally:
@@ -160,7 +157,11 @@ def delete_agent(agent_id,):
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM tb_agent WHERE id=%s", (agent_id,))
+        
+        query = """
+            DELETE FROM tb_agent WHERE id=%s
+        """
+        cursor.execute(query, (agent_id,))
         conn.commit()
     
     finally:
@@ -170,10 +171,12 @@ def insert_task(project_id, name, description, expected_output, position):
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute("""
+        
+        query = """
             INSERT INTO tb_task (project_id, name, description, expected_output, position)
             VALUES (%s, %s, %s, %s, %s) RETURNING id
-        """, (project_id, name, description, expected_output, Json(position)))
+        """
+        cursor.execute(query, (project_id, name, description, expected_output, Json(position)))
         row = cursor.fetchone()
         task_id = row['id']
         
@@ -187,11 +190,13 @@ def update_task(task_id, name, description, expected_output, position):
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute("""
+        
+        query = """
             UPDATE tb_task
             SET name=%s, description=%s, expected_output=%s, position=%s
             WHERE id=%s
-        """, (name, description, expected_output, Json(position), task_id))
+        """
+        cursor.execute(query, (name, description, expected_output, Json(position), task_id))
         
         conn.commit()
 
@@ -202,7 +207,11 @@ def delete_task(task_id):
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM tb_task WHERE id=%s", (task_id,))
+        
+        query = """
+            DELETE FROM tb_task WHERE id=%s
+        """
+        cursor.execute(query, (task_id,))
         conn.commit()
 
     finally:
@@ -212,10 +221,12 @@ def insert_edge(project_id, source_type, source_id, target_type, target_id, sour
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute("""
+        
+        query = """
             INSERT INTO tb_edge (project_id, source_type, source_id, target_type, target_id, source_handle, target_handle)
             VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id
-        """, (project_id, source_type, source_id, target_type, target_id, source_handle, target_handle))
+        """
+        cursor.execute(query, (project_id, source_type, source_id, target_type, target_id, source_handle, target_handle))
         row = cursor.fetchone()
         edge_id = row['id']
         
@@ -229,11 +240,13 @@ def update_edge(edge_id, source_type, source_id, target_type, target_id, source_
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute("""
+        
+        query = """
             UPDATE tb_edge
             SET source_type=%s, source_id=%s, target_type=%s, target_id=%s, source_handle=%s, target_handle=%s
             WHERE id=%s
-        """, (source_type, source_id, target_type, target_id, source_handle, target_handle, edge_id))
+        """
+        cursor.execute(query, (source_type, source_id, target_type, target_id, source_handle, target_handle, edge_id))
         
         conn.commit()
     
@@ -244,7 +257,11 @@ def delete_edge(edge_id):
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM tb_edge WHERE id=%s", (edge_id,))
+        
+        query = """
+            DELETE FROM tb_edge WHERE id=%s
+        """
+        cursor.execute(query, (edge_id,))
         conn.commit()
     
     finally:
@@ -254,10 +271,12 @@ def create_execution(project_id, status):
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute("""
+        
+        query = """
             INSERT INTO tb_execution (project_id, status, create_time)
             VALUES (%s, %s, NOW()) RETURNING id
-        """, (project_id, status))
+        """
+        cursor.execute(query, (project_id, status))
         row = cursor.fetchone()
         execution_id = row['id']
         
@@ -271,11 +290,13 @@ def update_execution(status, result, execution_id):
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute("""
+        
+        query = """
             UPDATE tb_execution
             SET status=%s, result=%s, update_time=NOW()
             WHERE id=%s
-        """, (status, result, execution_id))
+        """
+        cursor.execute(query, (status, result, execution_id))
         
         conn.commit()
     
@@ -289,15 +310,82 @@ def get_execution_status(execution_id):
 
         query = """
             SELECT
-                id, status, result
+                id, project_id, status, result, create_time, update_time
             FROM tb_execution
             WHERE id=%s
         """
         cursor.execute(query, (execution_id,))
-        result = cursor.fetchall()
+        row = cursor.fetchone()
 
+        if not row:
+            return None
+        
+        return row
+    finally:
+        release_db_connection(conn)
+
+def update_execution_partial(execution_id, partial_data):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        
+        if "result" in partial_data:
+            result_to_save = partial_data["result"]
+        else:
+            query = """
+                SELECT result FROM tb_execution WHERE id=%s
+            """
+            cursor.execute(query, (execution_id,))
+            row = cursor.fetchone()
+            
+            if row and row['result']:
+                current_result = row['result'] 
+            else:
+                current_result = {
+                    "agent_hierarchy": [],
+                    "workflow": [],
+                    "crew_id": None,
+                    "final_output": None
+                }
+            
+            if "workflow_item" in partial_data:
+                current_result["workflow"].append(partial_data["workflow_item"])
+            
+            result_to_save = json.dumps(current_result)
+        
+        status = partial_data.get("status", False)
+        
+        query = """
+            UPDATE tb_execution
+            SET result = %s::jsonb,
+                status = %s,
+                update_time = now()
+            WHERE id = %s
+        """
+        cursor.execute(query, (result_to_save, status, execution_id))
         conn.commit()
-        return result
+        
+        return cursor.rowcount
+
+    finally:
+        release_db_connection(conn)
+
+def update_execution_final(execution_id, status, final_result):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+
+        query = """
+            UPDATE tb_execution
+            SET status = %s,
+                result = %s::jsonb,
+                update_time = now()
+            WHERE id = %s
+        """
+        cursor.execute(query, (status, json.dumps(final_result), execution_id))
+        conn.commit()
+        
+        return cursor.rowcount
 
     finally:
         release_db_connection(conn)
