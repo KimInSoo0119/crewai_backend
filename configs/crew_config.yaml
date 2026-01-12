@@ -16,7 +16,7 @@ agents:
       최첨단 기술 동향을 누구보다 빠르게 파악하는 전문 리서처
     model: custom
     tools:
-      - [WebSearchTool]
+      - WebSearchTool
 
   - id: 2
     role: "AI 뉴스 요약 에이전트"
