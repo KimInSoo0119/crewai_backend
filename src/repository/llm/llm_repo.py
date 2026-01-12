@@ -66,7 +66,6 @@ def get_model_info(model_id: int):
             "api_key": decrypted_api_key
         }
         
-        conn.commit()
         return model_info
 
     finally:
@@ -85,7 +84,6 @@ def get_llm_list():
         cursor.execute(query)
         result = cursor.fetchall()
 
-        conn.commit()
         return result
 
     finally:
@@ -104,7 +102,6 @@ def get_provider_list():
         cursor.execute(query)
         result = cursor.fetchall()
 
-        conn.commit()
         return result
 
     finally:

@@ -59,7 +59,6 @@ def find_one(project_id: int, task_id: int):
         cursor.execute(query, (project_id, task_id))
         result = cursor.fetchall()
 
-        conn.commit()
         return result
 
     finally:

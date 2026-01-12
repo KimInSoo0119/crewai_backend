@@ -31,7 +31,7 @@ class AgentToolDelRequest(BaseModel):
 def save_agent(agent: AgentSave):
     try:
         response = agent_service.save_agent(agent)
-        return response
+        return {"data": response}
     except RuntimeError as e:
         raise HTTPException(status_code=400, detail=str(e))
     

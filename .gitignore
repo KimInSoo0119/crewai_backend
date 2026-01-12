@@ -6,11 +6,11 @@ __pycache__/
 
 # Virtual Environments
 .venv/
-env/
 venv/
-ENV/
-env.bak/
 venv.bak/
+
+# Environment variables
+.env
 
 # Distribution / packaging
 build/
@@ -18,25 +18,5 @@ dist/
 *.egg-info/
 *.egg
 
-# IDEs / Editors
+# IDEs 
 .vscode/
-.idea/
-*.sublime-project
-*.sublime-workspace
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
-
-# Pytest cache
-.pytest_cache/
-
-# Uvicorn / FastAPI temporary files
-__pycache__/
-*.db
-*.sqlite3
-
-.env

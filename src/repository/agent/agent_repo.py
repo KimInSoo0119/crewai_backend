@@ -69,7 +69,6 @@ def find_one(project_id: int, agent_id: int):
         cursor.execute(query, (project_id, agent_id))
         result = cursor.fetchall()
 
-        conn.commit()
         return result
 
     finally:

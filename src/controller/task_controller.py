@@ -18,7 +18,7 @@ class TaskSave(BaseModel):
 def save_task(task: TaskSave):
     try:
         response = task_service.save_task(task)
-        return response
+        return {"data": response}
     except RuntimeError as e:
         raise HTTPException(status_code=400, detail=str(e))
     
