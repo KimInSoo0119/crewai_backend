@@ -4,7 +4,7 @@ project:
 
 models:
   custom:
-    name: "openai/gpt-oss-120b"
+    name: "google/gemma-3-27b-it"
     api_base_url: "http://gpurent.kogrobo.com:51089/v1"
     api_key: "14987239852394087234902287"
 
@@ -16,7 +16,7 @@ agents:
       최첨단 기술 동향을 누구보다 빠르게 파악하는 전문 리서처
     model: custom
     tools:
-      - WebSearchTool
+      - name: WebSearchTool
 
   - id: 2
     role: "AI 뉴스 요약 에이전트"
