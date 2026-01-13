@@ -146,32 +146,55 @@ def execute_flow(project_id, nodes, edges):
             target_type = target_handle.split("-")[0] if target_handle and "-" in target_handle else None
     
             if not source_type or not target_type:
+                print(f"[Edge Warning] Missing handle types - source: {source_handle}, target: {target_handle}")
                 continue
 
+            # Source ID 파싱
             if source in id_map:
                 source_id = id_map[source]
             else:
                 if "-" in source:
-                    _, real_id = source.split("-", 1)
-                    source_id = int(real_id)
+                    parts = source.split("-", 1)
+                    if len(parts) == 2:
+                        source_id = int(parts[1])
+                    else:
+                        print(f"[Edge Error] Invalid source format: {source}")
+                        continue
                 else:
-                    continue
+                    try:
+                        source_id = int(source)
+                    except ValueError:
+                        print(f"[Edge Error] Cannot parse source ID: {source}")
+                        continue
 
+            # Target ID 파싱 
             if target in id_map:
                 target_id = id_map[target]
             else:
                 if "-" in target:
-                    _, real_id = target.split("-", 1)
-                    target_id = int(real_id)
+                    parts = target.split("-", 1)
+                    if len(parts) == 2:
+                        target_id = int(parts[1])
+                    else:
+                        print(f"[Edge Error] Invalid target format: {target}")
+                        continue
                 else:
-                    continue
+                    try:
+                        target_id = int(target)
+                    except ValueError:
+                        print(f"[Edge Error] Cannot parse target ID: {target}")
+                        continue
 
-            if db_id:
-                crew_repo.update_edge(db_id, source_type, source_id, target_type, target_id, source_handle, target_handle)
-                request_edges.add(db_id)
-            else:
-                new_id = crew_repo.insert_edge(project_id, source_type, source_id, target_type, target_id, source_handle, target_handle)
-                request_edges.add(new_id)
+            try:
+                if db_id:
+                    crew_repo.update_edge(db_id, source_type, source_id, target_type, target_id, source_handle, target_handle)
+                    request_edges.add(db_id)
+                else:
+                    new_id = crew_repo.insert_edge(project_id, source_type, source_id, target_type, target_id, source_handle, target_handle)
+                    request_edges.add(new_id)
+            except Exception as e:
+                print(f"[Edge Error] Failed to save edge: source={source}, target={target}, error={e}")
+                continue
 
         for edge_id in existing_edges - request_edges:
             crew_repo.delete_edge(edge_id)
@@ -192,7 +215,17 @@ def execute_flow(project_id, nodes, edges):
         def run_async():
             try:
                 result = run_crewai_flow(nodes, edges, id_map, execution_id, crew_repo)
-                crew_repo.update_execution(status=True, result=json.dumps(result['details']), execution_id=execution_id)
+                
+                if isinstance(result, dict):
+                    details = result.get('details', result)
+                else:
+                    details = {"final_output": str(result)}
+                
+                crew_repo.update_execution(
+                    status=True, 
+                    result=json.dumps(details), 
+                    execution_id=execution_id
+                )
             except Exception as e:
                 error_msg = f"execute_flow error: {str(e)}"
                 print(error_msg)
@@ -217,7 +250,7 @@ def execute_flow(project_id, nodes, edges):
         return {"execution_id": execution_id}
 
     except Exception as e:
-        raise RuntimeError(f"execute_flow error: {str(e)}")
+        raise RuntimeError(f"error: {str(e)}")
 
 def get_execution_status(execution_id):
     try:

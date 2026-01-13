@@ -9,7 +9,7 @@ def run_crewai_flow(nodes, edges, id_map, execution_id, crew_repo):
         tasks_obj = {}
         task_dependencies = {}
 
-        # Agent 생성
+        # Agent 
         for node in nodes:
             try:
                 db_id = getattr(node, "dbId", None)
@@ -55,7 +55,7 @@ def run_crewai_flow(nodes, edges, id_map, execution_id, crew_repo):
             except Exception as e:
                 print(f"[Agent Creation Error] Node ID: {getattr(node, 'id', None)} - {str(e)}")
 
-        # Task 생성
+        # Task 
         for node in nodes:
             try:
                 db_id = getattr(node, "dbId", None)
@@ -87,23 +87,47 @@ def run_crewai_flow(nodes, edges, id_map, execution_id, crew_repo):
             except Exception as e:
                 print(f"[Task Creation Error] Node ID: {getattr(node, 'id', None)} - {str(e)}")
 
-        # Edge 처리
+        # Edge
         for edge in edges:
             try:
                 source = getattr(edge, "source", None)
                 target = getattr(edge, "target", None)
 
+                # Source ID 파싱
                 if source in id_map:
                     source_id = id_map[source]
                 else:
-                    _, source_id = source.split("-", 1)  
-                    source_id = int(source_id)
+                    if "-" in str(source):
+                        parts = str(source).split("-", 1)
+                        if len(parts) == 2:
+                            source_id = int(parts[1])
+                        else:
+                            print(f"[Edge Error] Invalid source format after split: {source}")
+                            continue
+                    else:
+                        try:
+                            source_id = int(source)
+                        except (ValueError, TypeError):
+                            print(f"[Edge Error] Cannot parse source ID: {source}")
+                            continue
 
+                # Target ID 파싱
                 if target in id_map:
                     target_id = id_map[target]
                 else:
-                    _, target_id = target.split("-", 1)  
-                    target_id = int(target_id)
+                    if "-" in str(target):
+                        parts = str(target).split("-", 1)
+                        if len(parts) == 2:
+                            target_id = int(parts[1])
+                        else:
+                            print(f"[Edge Error] Invalid target format after split: {target}")
+                            continue
+                    else:
+                        try:
+                            target_id = int(target)
+                        except (ValueError, TypeError):
+                            print(f"[Edge Error] Cannot parse target ID: {target}")
+                            continue
 
                 source_agent = agents_obj.get(source_id)
                 source_task_obj = tasks_obj.get(source_id)
@@ -122,6 +146,8 @@ def run_crewai_flow(nodes, edges, id_map, execution_id, crew_repo):
                         task_dependencies[target_id].append(source_id)
             except Exception as e:
                 print(f"[Edge Connection Error] Source: {source}, Target: {target} - {str(e)}")
+                import traceback
+                traceback.print_exc()
 
         # agent가 없는 task 제거
         tasks_without_agent = []
@@ -371,4 +397,6 @@ def run_crewai_flow(nodes, edges, id_map, execution_id, crew_repo):
 
     except Exception as e:
         print(f"[Crew Execution Error] {str(e)}")
+        import traceback
+        traceback.print_exc()
         return {"status": "error", "message": str(e)}
