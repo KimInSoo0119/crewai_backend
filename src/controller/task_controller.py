@@ -31,3 +31,11 @@ def get_task(project_id: int, task_id: int):
         return {"data": response}
     except RuntimeError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    
+@router.get("/executions/{execution_id}")
+def get_task_executions(execution_id: int):
+    try:
+        response = task_service.get_task_executions(execution_id)
+        return {"data": response}
+    except RuntimeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
