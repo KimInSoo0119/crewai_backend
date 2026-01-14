@@ -18,5 +18,3 @@ dist/
 *.egg-info/
 *.egg
 
-# IDEs 
-.vscode/
