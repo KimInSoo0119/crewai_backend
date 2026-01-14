@@ -4,14 +4,14 @@ from src.service.llm import llm_service
 
 router = APIRouter()
 
-class llmInfo(BaseModel):
+class LLMInfo(BaseModel):
     name: str
     provider: str
     api_key: str
     api_base: str
 
 @router.post("/connection")
-def connection_llm(llmInfo: llmInfo):
+def connection_llm(llmInfo: LLMInfo):
     try:
         response = llm_service.connection_llm(llmInfo)
         return {"data": response}

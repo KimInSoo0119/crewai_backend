@@ -91,6 +91,7 @@ def execute_flow(project_id, nodes, edges):
 
         id_map = {}
 
+        # Agent/Task
         for node in nodes:
             db_id = getattr(node, "dbId", None)
             node_id = getattr(node, "id", None)
@@ -130,11 +131,13 @@ def execute_flow(project_id, nodes, edges):
                     request_tasks.add(new_id)
                     id_map[node_id] = new_id
 
+        # 삭제된 노드 처리
         for agent_id in existing_agents - request_agents:
             crew_repo.delete_agent(agent_id)
         for task_id in existing_tasks - request_tasks:
             crew_repo.delete_task(task_id)
 
+        # Edge 
         for edge in edges:
             db_id = getattr(edge, "dbId", None)
             source = getattr(edge, "source", "")
@@ -199,49 +202,45 @@ def execute_flow(project_id, nodes, edges):
         for edge_id in existing_edges - request_edges:
             crew_repo.delete_edge(edge_id)
 
-        execution_id = crew_repo.create_execution(project_id=project_id, status=False)
+        # Execution 생성
+        execution_id = crew_repo.create_execution(project_id=project_id)
 
+        # 초기 상태 저장 
         initial_result = {
             "crew_id": None,
             "agent_hierarchy": [],
-            "workflow": [],
-            "final_output": None
+            "status": "initializing"
         }
-        crew_repo.update_execution_partial(execution_id, {
-            "status": False,
-            "result": json.dumps(initial_result)
-        })
+        crew_repo.update_execution_result(execution_id, initial_result)
 
         def run_async():
             try:
+                print(f"[Async Thread Started] Execution ID: {execution_id}")
+                
                 result = run_crewai_flow(nodes, edges, id_map, execution_id, crew_repo)
                 
-                if isinstance(result, dict):
-                    details = result.get('details', result)
-                else:
-                    details = {"final_output": str(result)}
+                print(f"[Async Thread Completed] Result: {result.get('status', 'unknown')}")
                 
-                crew_repo.update_execution(
-                    status=True, 
-                    result=json.dumps(details), 
-                    execution_id=execution_id
-                )
             except Exception as e:
-                error_msg = f"execute_flow error: {str(e)}"
-                print(error_msg)
+                error_msg = f"Async execution error: {str(e)}"
+                print(f"[Async Thread Error] {error_msg}")
                 
+                import traceback
+                traceback.print_exc()
+                
+                # 에러 발생 시 상태 업데이트
                 error_result = {
                     "crew_id": None,
                     "agent_hierarchy": [],
-                    "workflow": [],
-                    "final_output": None,
-                    "error": error_msg
+                    "error": error_msg,
+                    "status": "failed"
                 }
-                crew_repo.update_execution_partial(execution_id, {
-                    "status": False,
-                    "result": json.dumps(error_result)
-                })
-                raise RuntimeError(error_msg)
+                
+                crew_repo.update_execution_final(
+                    execution_id=execution_id,
+                    status=False,
+                    final_result=error_result
+                )
         
         thread = Thread(target=run_async)
         thread.daemon = False  
@@ -250,7 +249,8 @@ def execute_flow(project_id, nodes, edges):
         return {"execution_id": execution_id}
 
     except Exception as e:
-        raise RuntimeError(f"error: {str(e)}")
+        print(f"[Execute Flow Error] {str(e)}")
+        raise RuntimeError(f"Execute flow error: {str(e)}")
 
 def get_execution_status(execution_id):
     try:

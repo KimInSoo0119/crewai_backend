@@ -63,3 +63,49 @@ def find_one(project_id: int, task_id: int):
 
     finally:
         release_db_connection(conn)
+
+def get_task_executions_by_execution_id(execution_id):
+    """특정 execution의 모든 task 결과 조회 (프론트용)"""
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        
+        query = """
+            SELECT 
+                id,
+                execution_id,
+                task_id,
+                task_name,
+                execution_order,
+                task_output,
+                create_time
+            FROM tb_task_execution
+            WHERE execution_id = %s
+            ORDER BY execution_order NULLS LAST, create_time
+        """
+        cursor.execute(query, (execution_id,))
+        result = cursor.fetchall()
+        
+        return result
+    
+    finally:
+        release_db_connection(conn)
+
+def get_execution_status(execution_id):
+    """Execution 조회"""
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+
+        query = """
+            SELECT id, project_id, result, status, create_time, update_time
+            FROM tb_execution
+            WHERE id=%s
+        """
+        cursor.execute(query, (execution_id,))
+        row = cursor.fetchone()
+
+        return row
+    
+    finally:
+        release_db_connection(conn)

@@ -1,6 +1,5 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Optional
 from src.service.agent import agent_service
 from typing import Optional, Any, Dict
 
